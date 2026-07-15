@@ -9,4 +9,4 @@ async function testar() {
     await cliente.end();
     }
 
-    testar().catch((erro) => console.error('Falha na conexao:', erro.message));
+    testar().catch((erro) => console.error('Falha na conexao:', erro.message, process.env.DATABASE_URL));
