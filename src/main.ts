@@ -3,19 +3,24 @@ import path from 'path'
 import os from 'os'
 import fs from 'fs'
 
-let mainWindow: BrowserWindow | null = null
-
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
+    minHeight: 400,
+    minWidth: 600,
+    center: true,
+    title: 'TechOS - Gerenciamento de Assistência Técnica',
+    show: false, // Evita que a janela apareça antes de estar pronta
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   })
-
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+  });
   // Em desenvolvimento usa a URL do Vite; em produção carrega o HTML compilado.
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)

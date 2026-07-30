@@ -1,17 +1,17 @@
-interface clientes {
+export interface clientes {
     id: number; 
     nome: string;
     telefone: string;
 }
 
-interface equipamentos {
+export interface equipamentos {
     id: number;
     marca: string;
     modelo: string;
     Idclientes: number;
 }
 
-interface ordens_de_servico {
+export interface ordens_de_servico {
     id: number;
     idEquipamento: number;
     descricao_defeito: string;
@@ -19,4 +19,5 @@ interface ordens_de_servico {
     valor_Total: number;
 }       
 
-export { clientes, equipamentos, ordens_de_servico };
+
+
