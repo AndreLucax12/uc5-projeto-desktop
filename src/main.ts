@@ -1,10 +1,10 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 import path from 'path'
-import os from 'os'
-import fs from 'fs'
+
+let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     minHeight: 400,
@@ -24,6 +24,7 @@ function createWindow() {
   // Em desenvolvimento usa a URL do Vite; em produção carrega o HTML compilado.
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+    mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
@@ -50,43 +51,89 @@ ipcMain.handle('canal-ping', async () => {
   return 'pong do Processo Main!'
 })
 
-ipcMain.handle('obter-dados-maquina', async () => {
-  // Calcula a RAM total em Gigabytes
-  const ramTotalGB = (os.totalmem() / (1024 ** 3)).toFixed(2);
-  return {
-    plataforma: os.platform(), // ex: win32, linux
-    processador: os.cpus()[0].model, // modelo do processador
-    memoriaRam: `${ramTotalGB} GB`
-  };
-});
 
-ipcMain.handle('calcular-imc', async (_event, peso: number, altura: number)=> {
-  if (!peso || !altura || peso <= 0 || altura <= 0) {
-    throw new Error('Valores de peso ou altura inválidos.');
-  }
-  const imc = parseFloat((peso / (altura * altura)).toFixed(2));
-  let classificacao = '';
-  if (imc < 18.5) classificacao = 'Abaixo do peso';
-  else if (imc < 25.0) classificacao = 'Peso normal'; // Limite OMS: < 25,0kg / m2 
-  else if (imc < 29.9) classificacao = 'Sobrepeso';
-  else classificacao = 'Obesidade';
-  return { imc, classificacao };
-});
 
-ipcMain.handle('registrar-log', async (_event, textoLog: string) => {
- if (!textoLog.trim()) return false;
- // NOTA: app.getAppPath() funciona apenas em desenvolvimento.
- // Em produção (.asar), este diretório é somente leitura.
- // Para dados persistidos no app instalado, use: app.getPath('userData')
- const caminhoArquivo = path.join(app.getAppPath(), 'logs.txt');
- const timestamp = new Date().toISOString();
- const linhaLog = `[${timestamp}] ${textoLog}\n`;
- try {
- // Adiciona a linha no final do arquivo de forma síncrona
- fs.appendFileSync(caminhoArquivo, linhaLog, 'utf-8');
- return true;
- } catch (erro: unknown) {
- console.error('Falha de escrita no arquivo:', erro);
- return false;
- }
-});
+const clientesMock = [
+  { id: 1, nome: 'João Silva', telefone: '85999990000' },
+  { id: 2, nome: 'Maria Souza', telefone: '85988887777' },
+]
+
+const equipamentosMock = [
+  { id: 1, marca: 'Samsung', modelo: 'Galaxy A54', Idclientes: 1 },
+]
+
+const ordensMock = [
+  { id: 1, idEquipamento: 1, descricao_defeito: 'Tela trincada', status: 'aberta', valor_Total: 0 },
+]
+
+ipcMain.handle('clientes:listar', async () => clientesMock)
+
+ipcMain.handle('clientes:criar', async (_event, novoCliente) => {
+  const cliente = { id: clientesMock.length + 1, ...novoCliente }
+  clientesMock.push(cliente)
+  return cliente
+})
+
+ipcMain.handle('equipamentos:listar-por-cliente', async (_event, idCliente: number) => {
+  return equipamentosMock.filter((e) => e.Idclientes === idCliente)
+})
+
+ipcMain.handle('os:criar', async (_event, novaOS) => {
+  const os = { id: ordensMock.length + 1, status: 'aberta', valor_Total: 0, ...novaOS }
+  ordensMock.push(os)
+  return os
+})
+
+ipcMain.handle('os:atualizar-status', async (_event, id: number, novoStatus: string) => {
+  const os = ordensMock.find((o) => o.id === id)
+  if (!os) throw new Error('OS não encontrada')
+  os.status = novoStatus
+  return os
+})
+
+ipcMain.handle('os:relatorio-faturamento', async () => {
+  const total = ordensMock
+    .filter((o) => o.status === 'finalizada')
+    .reduce((soma, o) => soma + o.valor_Total, 0)
+  return { total }
+})
+
+function criarMenu() {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'TechOS', // nome do seu sistema — troque se quiser outro nome
+      submenu: [
+        {
+          label: 'Sobre',
+          click: () => {
+            console.log('Gerenciador de Ordens de Serviço - v1.0')
+          },
+        },
+        { type: 'separator' },
+        { role: 'quit', label: 'Sair' },
+      ],
+    },
+    {
+      label: 'Visualizar',
+      submenu: [
+        { role: 'reload', label: 'Recarregar' },
+        { role: 'toggleDevTools', label: 'Ferramentas do Desenvolvedor' },
+      ],
+    },
+  ]
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
+}
+
+app.whenReady().then(() => {
+  createWindow()
+  criarMenu()
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+app.on('before-quit', () => {
+  console.log('Encerrando o Gerenciador de Ordens de Serviço. Até logo!')
+})
