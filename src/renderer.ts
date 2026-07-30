@@ -21,7 +21,7 @@ declare global {
 }
 
 const appElement = document.getElementById('app') as HTMLDivElement
-appElement.innerHTML = `<h1>Gerenciador de Ordens de Serviço</h1>`
+appElement.innerHTML = `<h1>TechOS - Gerenciamento de Assistência Técnica</h1>`
 
 export {}
 window.api.clientes.listar().then((r) => console.log('Clientes:', r))

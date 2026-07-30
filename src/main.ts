@@ -106,7 +106,7 @@ function criarMenu() {
         {
           label: 'Sobre',
           click: () => {
-            console.log('Gerenciador de Ordens de Serviço - v1.0')
+            console.log('TechOS - Gerenciamento de Assistencia Tecnica - v1.0')
           },
         },
         { type: 'separator' },
@@ -135,5 +135,5 @@ app.whenReady().then(() => {
 })
 
 app.on('before-quit', () => {
-  console.log('Encerrando o Gerenciador de Ordens de Serviço. Até logo!')
+  console.log('Encerrando o TechOS. Ate logo!')
 })
