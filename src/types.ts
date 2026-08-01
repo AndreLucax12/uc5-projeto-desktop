@@ -8,7 +8,7 @@ export interface equipamentos {
     id: number;
     marca: string;
     modelo: string;
-    id_clientes: number;
+    id_cliente: number;
 }
 
 export interface ordens_de_servico {

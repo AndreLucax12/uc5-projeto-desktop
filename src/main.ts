@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 import path from 'path'
-
+import type { clientes, equipamentos, ordens_de_servico } from './types'
 let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
@@ -43,38 +43,38 @@ ipcMain.handle('canal-ping', async () => {
 
 
 
-const clientesMock = [
+const clientesMock: clientes[] = [
   { id: 1, nome: 'João Silva', telefone: '85999990000' },
   { id: 2, nome: 'Maria Souza', telefone: '85988887777' },
 ]
 
-const equipamentosMock = [
-  { id: 1, marca: 'Samsung', modelo: 'Galaxy A54', id_clientes: 1 },
+const equipamentosMock: equipamentos[] = [
+  { id: 1, marca: 'Samsung', modelo: 'Galaxy A54', id_cliente: 1 },
 ]
 
-const ordensMock = [
+const ordensMock: ordens_de_servico[] = [
   { id: 1, id_equipamento: 1, descricao_defeito: 'Tela trincada', status: 'aberta', valor_total: 0 },
 ]
 
 ipcMain.handle('clientes:listar', async () => clientesMock)
 
-ipcMain.handle('clientes:criar', async (_event, novoCliente) => {
+ipcMain.handle('clientes:criar', async (_event, novoCliente: Omit<clientes, 'id'>) => {
   const cliente = { id: clientesMock.length + 1, ...novoCliente }
   clientesMock.push(cliente)
   return cliente
 })
 
 ipcMain.handle('equipamentos:listar-por-cliente', async (_event, idCliente: number) => {
-  return equipamentosMock.filter((e) => e.id_clientes === idCliente)
+  return equipamentosMock.filter((e) => e.id_cliente === idCliente)
 })
 
-ipcMain.handle('os:criar', async (_event, novaOS) => {
-  const os = { id: ordensMock.length + 1, status: 'aberta', valor_total: 0, ...novaOS }
+ipcMain.handle('os:criar', async (_event, novaOS: Omit<ordens_de_servico, 'id'|'status'|'valor_total'>) => {
+  const os: ordens_de_servico = { id: ordensMock.length + 1, status: 'aberta', valor_total: 0, ...novaOS }
   ordensMock.push(os)
   return os
 })
 
-ipcMain.handle('os:atualizar-status', async (_event, id: number, novoStatus: string) => {
+ipcMain.handle('os:atualizar-status', async (_event, id: number, novoStatus: ordens_de_servico['status']) => {
   const os = ordensMock.find((o) => o.id === id)
   if (!os) throw new Error('OS não encontrada')
   os.status = novoStatus

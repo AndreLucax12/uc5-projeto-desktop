@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   os: {
     criar: (os: Omit<ordens_de_servico, 'id'|'status'|'valor_total'>): Promise<ordens_de_servico> => ipcRenderer.invoke('os:criar', os),
-    atualizarStatus: (id: number, status: string): Promise<ordens_de_servico> => ipcRenderer.invoke('os:atualizar-status', id, status),
+    atualizarStatus: (id: number, status: ordens_de_servico['status']): Promise<ordens_de_servico> => ipcRenderer.invoke('os:atualizar-status', id, status),
     relatorioFaturamento: (): Promise<{ total: number }> => ipcRenderer.invoke('os:relatorio-faturamento'),
   },
 })
