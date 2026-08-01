@@ -1,19 +1,19 @@
 import './style.css'
-
+import type { clientes, equipamentos, ordens_de_servico } from './types'
 declare global {
   interface Window {
     api: {
       ping: () => Promise<string>
       clientes: {
-        listar: () => Promise<any[]>
-        criar: (cliente: any) => Promise<any>
+        listar: () => Promise<clientes[]>
+        criar: (cliente: Omit<clientes, 'id'>) => Promise<clientes>
       }
       equipamentos: {
-        listarPorCliente: (idCliente: number) => Promise<any[]>
+        listarPorCliente: (idCliente: number) => Promise<equipamentos[]>
       }
       os: {
-        criar: (os: any) => Promise<any>
-        atualizarStatus: (id: number, status: string) => Promise<any>
+        criar: (os: Omit<ordens_de_servico, 'id'|'status'|'valor_total'>) => Promise<ordens_de_servico>
+        atualizarStatus: (id: number, status: string) => Promise<ordens_de_servico>
         relatorioFaturamento: () => Promise<{ total: number }>
       }
     }

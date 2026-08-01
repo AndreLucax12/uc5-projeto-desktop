@@ -30,16 +30,6 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-    }
-  })
-})
-
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
@@ -59,11 +49,11 @@ const clientesMock = [
 ]
 
 const equipamentosMock = [
-  { id: 1, marca: 'Samsung', modelo: 'Galaxy A54', Idclientes: 1 },
+  { id: 1, marca: 'Samsung', modelo: 'Galaxy A54', id_clientes: 1 },
 ]
 
 const ordensMock = [
-  { id: 1, idEquipamento: 1, descricao_defeito: 'Tela trincada', status: 'aberta', valor_Total: 0 },
+  { id: 1, id_equipamento: 1, descricao_defeito: 'Tela trincada', status: 'aberta', valor_total: 0 },
 ]
 
 ipcMain.handle('clientes:listar', async () => clientesMock)
@@ -75,11 +65,11 @@ ipcMain.handle('clientes:criar', async (_event, novoCliente) => {
 })
 
 ipcMain.handle('equipamentos:listar-por-cliente', async (_event, idCliente: number) => {
-  return equipamentosMock.filter((e) => e.Idclientes === idCliente)
+  return equipamentosMock.filter((e) => e.id_clientes === idCliente)
 })
 
 ipcMain.handle('os:criar', async (_event, novaOS) => {
-  const os = { id: ordensMock.length + 1, status: 'aberta', valor_Total: 0, ...novaOS }
+  const os = { id: ordensMock.length + 1, status: 'aberta', valor_total: 0, ...novaOS }
   ordensMock.push(os)
   return os
 })
@@ -94,14 +84,14 @@ ipcMain.handle('os:atualizar-status', async (_event, id: number, novoStatus: str
 ipcMain.handle('os:relatorio-faturamento', async () => {
   const total = ordensMock
     .filter((o) => o.status === 'finalizada')
-    .reduce((soma, o) => soma + o.valor_Total, 0)
+    .reduce((soma, o) => soma + o.valor_total, 0)
   return { total }
 })
 
 function criarMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
     {
-      label: 'TechOS', // nome do seu sistema — troque se quiser outro nome
+      label: 'TechOS', 
       submenu: [
         {
           label: 'Sobre',

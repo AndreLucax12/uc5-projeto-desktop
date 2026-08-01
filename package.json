@@ -1,6 +1,6 @@
 {
   "name": "uc5-desktop-mod1-ipc",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "dist-electron/main.js",
   "description": "Projeto de referência: exercícios IPC com Electron + Vite + TypeScript",
   "scripts": {

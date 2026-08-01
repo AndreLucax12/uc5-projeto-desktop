@@ -8,15 +8,15 @@ export interface equipamentos {
     id: number;
     marca: string;
     modelo: string;
-    Idclientes: number;
+    id_clientes: number;
 }
 
 export interface ordens_de_servico {
     id: number;
-    idEquipamento: number;
+    id_equipamento: number;
     descricao_defeito: string;
     status: 'aberta' | 'em andamento' | 'finalizada';
-    valor_Total: number;
+    valor_total: number;
 }       
 
 
