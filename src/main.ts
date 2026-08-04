@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import path from "path";
 import type { clientes, equipamentos, ordens_de_servico } from "./types";
+import { pool } from "./db";
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
@@ -41,11 +42,6 @@ ipcMain.handle("canal-ping", async () => {
   return "pong do Processo Main!";
 });
 
-const clientesMock: clientes[] = [
-  { id: 1, nome: "João Silva", telefone: "85999990000" },
-  { id: 2, nome: "Maria Souza", telefone: "85988887777" },
-];
-
 const equipamentosMock: equipamentos[] = [
   { id: 1, marca: "Samsung", modelo: "Galaxy A54", id_cliente: 1 },
   { id: 2, marca: "Apple", modelo: "iPhone 14", id_cliente: 2 },
@@ -61,14 +57,21 @@ const ordensMock: ordens_de_servico[] = [
   },
 ];
 
-ipcMain.handle("clientes:listar", async () => clientesMock);
+ipcMain.handle("clientes:listar", async () => {
+  const resultado = await pool.query<clientes>(
+    "SELECT id, nome, telefone FROM clientes ORDER BY id",
+  );
+  return resultado.rows;
+});
 
 ipcMain.handle(
   "clientes:criar",
   async (_event, novoCliente: Omit<clientes, "id">) => {
-    const cliente = { id: clientesMock.length + 1, ...novoCliente };
-    clientesMock.push(cliente);
-    return cliente;
+    const resultado = await pool.query<clientes>(
+      "INSERT INTO clientes (nome, telefone) VALUES ($1, $2) RETURNING id, nome, telefone",
+      [novoCliente.nome, novoCliente.telefone],
+    );
+    return resultado.rows[0];
   },
 );
 
@@ -78,15 +81,6 @@ ipcMain.handle(
   "equipamentos:listar-por-cliente",
   async (_event, idCliente: number) => {
     return equipamentosMock.filter((e) => e.id_cliente === idCliente);
-  },
-);
-
-ipcMain.handle(
-  "equipamentos:criar",
-  async (_event, novoEquipamento: Omit<equipamentos, "id">) => {
-    const equipamento = { id: equipamentosMock.length + 1, ...novoEquipamento };
-    equipamentosMock.push(equipamento);
-    return equipamento;
   },
 );
 

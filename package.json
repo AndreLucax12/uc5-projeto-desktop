@@ -1,6 +1,6 @@
 {
-  "name": "uc5-desktop-mod1-ipc",
-  "version": "1.0.6",
+  "name": "TechOS - Gerenciador de assistência técnica",
+  "version": "1.0.9",
   "main": "dist-electron/main.js",
   "description": "Projeto de referência: exercícios IPC com Electron + Vite + TypeScript",
   "scripts": {
@@ -15,6 +15,7 @@
   "devDependencies": {
     "@carlos-iso/versioner": "^0.0.2",
     "@types/node": "^22.10.0",
+    "@types/pg": "^8.20.4",
     "electron": "^42.6.0",
     "electron-builder": "^26.15.3",
     "typescript": "^5.4.5",
