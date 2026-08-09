@@ -42,20 +42,6 @@ ipcMain.handle("canal-ping", async () => {
   return "pong do Processo Main!";
 });
 
-const equipamentosMock: equipamentos[] = [
-  { id: 1, marca: "Samsung", modelo: "Galaxy A54", id_cliente: 1 },
-  { id: 2, marca: "Apple", modelo: "iPhone 14", id_cliente: 2 },
-];
-
-const ordensMock: ordens_de_servico[] = [
-  {
-    id: 1,
-    id_equipamento: 1,
-    descricao_defeito: "Tela trincada",
-    status: "aberta",
-    valor_total: 0,
-  },
-];
 
 ipcMain.handle("clientes:listar", async () => {
   const resultado = await pool.query<clientes>(
@@ -75,50 +61,57 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle("equipamentos:listar", async () => equipamentosMock);
+ipcMain.handle('equipamentos:listar', async () => {
+  const resultado = await pool.query<equipamentos>('SELECT id, marca, modelo, id_cliente FROM equipamentos ORDER BY id')
+  return resultado.rows
+})
 
-ipcMain.handle(
-  "equipamentos:listar-por-cliente",
-  async (_event, idCliente: number) => {
-    return equipamentosMock.filter((e) => e.id_cliente === idCliente);
-  },
-);
+ipcMain.handle('equipamentos:listar-por-cliente', async (_event, idCliente: number) => {
+  const resultado = await pool.query<equipamentos>(
+    'SELECT id, marca, modelo, id_cliente FROM equipamentos WHERE id_cliente = $1 ORDER BY id',
+    [idCliente],
+  )
+  return resultado.rows
+})
 
-ipcMain.handle("os:listar", async () => ordensMock);
+ipcMain.handle('equipamentos:criar', async (_event, novoEquipamento: Omit<equipamentos, 'id'>) => {
+  const resultado = await pool.query<equipamentos>(
+    'INSERT INTO equipamentos (marca, modelo, id_cliente) VALUES ($1, $2, $3) RETURNING id, marca, modelo, id_cliente',
+    [novoEquipamento.marca, novoEquipamento.modelo, novoEquipamento.id_cliente],
+  )
+  return resultado.rows[0]
+})
 
-ipcMain.handle(
-  "os:criar",
-  async (
-    _event,
-    novaOS: Omit<ordens_de_servico, "id" | "status" | "valor_total">,
-  ) => {
-    const os: ordens_de_servico = {
-      id: ordensMock.length + 1,
-      status: "aberta",
-      valor_total: 0,
-      ...novaOS,
-    };
-    ordensMock.push(os);
-    return os;
-  },
-);
+ipcMain.handle('os:listar', async () => {
+  const resultado = await pool.query<ordens_de_servico>(
+    'SELECT id, id_equipamento, descricao_defeito, status, valor_total FROM ordens_servico ORDER BY id DESC',
+  )
+  return resultado.rows
+})
 
-ipcMain.handle(
-  "os:atualizar-status",
-  async (_event, id: number, novoStatus: ordens_de_servico["status"]) => {
-    const os = ordensMock.find((o) => o.id === id);
-    if (!os) throw new Error("OS não encontrada");
-    os.status = novoStatus;
-    return os;
-  },
-);
+ipcMain.handle('os:criar', async (_event, novaOS: Omit<ordens_de_servico, 'id' | 'status' | 'valor_total'>) => {
+  const resultado = await pool.query<ordens_de_servico>(
+    'INSERT INTO ordens_servico (id_equipamento, descricao_defeito) VALUES ($1, $2) RETURNING id, id_equipamento, descricao_defeito, status, valor_total',
+    [novaOS.id_equipamento, novaOS.descricao_defeito],
+  )
+  return resultado.rows[0]
+})
 
-ipcMain.handle("os:relatorio-faturamento", async () => {
-  const total = ordensMock
-    .filter((o) => o.status === "finalizada")
-    .reduce((soma, o) => soma + o.valor_total, 0);
-  return { total };
-});
+ipcMain.handle('os:atualizar-status', async (_event, id: number, novoStatus: ordens_de_servico['status']) => {
+  const resultado = await pool.query<ordens_de_servico>(
+    'UPDATE ordens_servico SET status = $1 WHERE id = $2 RETURNING id, id_equipamento, descricao_defeito, status, valor_total',
+    [novoStatus, id],
+  )
+  if (resultado.rowCount === 0) throw new Error('OS não encontrada')
+  return resultado.rows[0]
+})
+
+ipcMain.handle('os:relatorio-faturamento', async () => {
+  const resultado = await pool.query<{ total: number }>(
+    "SELECT COALESCE(SUM(valor_total), 0) AS total FROM ordens_servico WHERE status = 'finalizada'",
+  )
+  return { total: resultado.rows[0].total }
+})
 
 function criarMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
