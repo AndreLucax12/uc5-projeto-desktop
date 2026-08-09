@@ -97,14 +97,15 @@ ipcMain.handle('os:criar', async (_event, novaOS: Omit<ordens_de_servico, 'id' |
   return resultado.rows[0]
 })
 
-ipcMain.handle('os:atualizar-status', async (_event, id: number, novoStatus: ordens_de_servico['status']) => {
+ipcMain.handle('os:atualizar-status', async (_event, id: number, novoStatus: ordens_de_servico['status'], valorTotal?: number) => {
   const resultado = await pool.query<ordens_de_servico>(
-    'UPDATE ordens_servico SET status = $1 WHERE id = $2 RETURNING id, id_equipamento, descricao_defeito, status, valor_total',
-    [novoStatus, id],
+    'UPDATE ordens_servico SET status = $1, valor_total = COALESCE($3, valor_total) WHERE id = $2 RETURNING id, id_equipamento, descricao_defeito, status, valor_total',
+    [novoStatus, id, valorTotal ?? null],
   )
   if (resultado.rowCount === 0) throw new Error('OS não encontrada')
   return resultado.rows[0]
 })
+
 
 ipcMain.handle('os:relatorio-faturamento', async () => {
   const resultado = await pool.query<{ total: number }>(

@@ -16,18 +16,27 @@ contextBridge.exposeInMainWorld("api", {
     criar: (equipamento: Omit<equipamentos, "id">): Promise<equipamentos> =>
       ipcRenderer.invoke("equipamentos:criar", equipamento),
   },
-  os: {
+    os: {
     listar: (): Promise<ordens_de_servico[]> => ipcRenderer.invoke("os:listar"),
     criar: (
       os: Omit<ordens_de_servico, "id" | "status" | "valor_total">,
     ): Promise<ordens_de_servico> => ipcRenderer.invoke("os:criar", os),
-
     atualizarStatus: (
       id: number,
-      status: ordens_de_servico["status"],
+      status: ordens_de_servico['status'],
+      valorTotal?: number,
     ): Promise<ordens_de_servico> =>
-      ipcRenderer.invoke("os:atualizar-status", id, status),
+      ipcRenderer.invoke('os:atualizar-status', id, status, valorTotal),
     relatorioFaturamento: (): Promise<{ total: number }> =>
       ipcRenderer.invoke("os:relatorio-faturamento"),
   },
-});
+
+
+    atualizarStatus: (
+      id: number,
+      status: ordens_de_servico['status'],
+      valorTotal?: number,
+    ): Promise<ordens_de_servico> =>
+      ipcRenderer.invoke('os:atualizar-status', id, status, valorTotal),
+  },
+);

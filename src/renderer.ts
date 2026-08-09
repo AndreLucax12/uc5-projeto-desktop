@@ -16,7 +16,7 @@ declare global {
       os: {
         listar: () => Promise<ordens_de_servico[]>
         criar: (os: Omit<ordens_de_servico, 'id' | 'status' | 'valor_total'>) => Promise<ordens_de_servico>
-        atualizarStatus: (id: number, status: ordens_de_servico['status']) => Promise<ordens_de_servico>
+        atualizarStatus: (id: number, status: ordens_de_servico['status'], valorTotal?: number) => Promise<ordens_de_servico>
         relatorioFaturamento: () => Promise<{ total: number }>
       }
     }
@@ -60,6 +60,46 @@ function descricaoEquipamento(idEquipamento: number): string {
   const equipamento = estado.equipamentos.find((e) => e.id === idEquipamento)
   return equipamento ? `${equipamento.marca} ${equipamento.modelo}` : `Equipamento #${idEquipamento}`
 }
+
+function pedirValor(mensagem: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div')
+    overlay.className = 'modal-overlay'
+    overlay.innerHTML = `
+      <div class="modal-card">
+        <p>${mensagem}</p>
+        <input type="number" id="modal-valor-input" step="0.01" min="0" value="0" />
+        <p class="modal-erro" id="modal-valor-erro"></p>
+        <div class="modal-actions">
+          <button type="button" class="secondary" id="modal-cancelar">Cancelar</button>
+          <button type="button" id="modal-confirmar">Confirmar</button>
+        </div>
+      </div>
+    `
+    document.body.appendChild(overlay)
+
+    const input = overlay.querySelector('#modal-valor-input') as HTMLInputElement
+    const erro = overlay.querySelector('#modal-valor-erro') as HTMLElement
+    input.focus()
+    input.select()
+
+    const fechar = (resultado: number | null) => {
+      overlay.remove()
+      resolve(resultado)
+    }
+
+    overlay.querySelector('#modal-cancelar')!.addEventListener('click', () => fechar(null))
+    overlay.querySelector('#modal-confirmar')!.addEventListener('click', () => {
+      const valor = Number(input.value)
+      if (Number.isNaN(valor) || valor < 0) {
+        erro.textContent = 'Digite um valor válido.'
+        return
+      }
+      fechar(valor)
+    })
+  })
+}
+
 
 function montarCasca() {
   const appElement = document.getElementById('app') as HTMLDivElement
@@ -332,13 +372,21 @@ function renderOS() {
     renderRelatorio()
   })
 
-  secao.querySelectorAll<HTMLButtonElement>('[data-avancar]').forEach((botao) => {
-    botao.addEventListener('click', async () => {
+    secao.querySelectorAll<HTMLButtonElement>('[data-avancar]').forEach((botao) => {
+      botao.addEventListener('click', async () => {
       const id = Number(botao.dataset.avancar)
       const os = estado.ordens.find((o) => o.id === id)
       const proximo = os ? proximoStatus[os.status] : null
       if (!proximo) return
-      await window.api.os.atualizarStatus(id, proximo)
+
+      let valor: number | undefined
+      if (proximo === 'finalizada') {
+        const resultado = await pedirValor('Valor cobrado nesta OS (R$):')
+        if (resultado === null) return
+        valor = resultado
+      }
+
+      await window.api.os.atualizarStatus(id, proximo, valor)
       estado.ordens = await window.api.os.listar()
       renderOS()
       renderRelatorio()
