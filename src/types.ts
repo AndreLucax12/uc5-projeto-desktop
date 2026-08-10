@@ -19,5 +19,8 @@ export interface ordens_de_servico {
     valor_total: number;
 }       
 
-
+export interface marca_suportada{
+    marca: string;
+    garantiaMeses: number;
+}
 

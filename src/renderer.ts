@@ -1,5 +1,5 @@
 import "./style.css";
-import type { clientes, equipamentos, ordens_de_servico } from "./types";
+import type { clientes, equipamentos, ordens_de_servico, marca_suportada } from "./types";
 declare global {
   interface Window {
     api: {
@@ -12,7 +12,9 @@ declare global {
         listar: () => Promise<equipamentos[]>
         listarPorCliente: (idCliente: number) => Promise<equipamentos[]>
         criar: (equipamento: Omit<equipamentos, 'id'>) => Promise<equipamentos>
+        listarMarcasSuportadas: () => Promise<marca_suportada[]>
       }
+
       os: {
         listar: () => Promise<ordens_de_servico[]>
         criar: (os: Omit<ordens_de_servico, 'id' | 'status' | 'valor_total'>) => Promise<ordens_de_servico>
@@ -31,6 +33,7 @@ const estado: {
   clientes: clientes[]
   equipamentos: equipamentos[]
   ordens: ordens_de_servico[]
+  marcasSuportadas: marca_suportada[]
   clienteFiltroEquipamentos: number | null
   clienteFormOS: number | null
 } = {
@@ -38,9 +41,11 @@ const estado: {
   clientes: [],
   equipamentos: [],
   ordens: [],
+  marcasSuportadas: [],
   clienteFiltroEquipamentos: null,
   clienteFormOS: null,
 }
+
 
 const proximoStatus: Record<ordens_de_servico['status'], ordens_de_servico['status'] | null> = {
   aberta: 'em andamento',
@@ -145,15 +150,18 @@ function atualizarAbaAtiva() {
 }
 
 async function carregarDados() {
-  const [clientesResp, equipamentosResp, ordensResp] = await Promise.all([
+  const [clientesResp, equipamentosResp, ordensResp, marcasResp] = await Promise.all([
     window.api.clientes.listar(),
     window.api.equipamentos.listar(),
     window.api.os.listar(),
+    window.api.equipamentos.listarMarcasSuportadas(),
   ])
   estado.clientes = clientesResp
   estado.equipamentos = equipamentosResp
   estado.ordens = ordensResp
+  estado.marcasSuportadas = marcasResp
 }
+
 
 function renderClientes() {
   const secao = document.getElementById('secao-clientes') as HTMLElement
@@ -241,6 +249,7 @@ function renderEquipamentos() {
   secao.innerHTML = `
     <h2 class="section-title">Equipamentos</h2>
     <div class="card">
+    
       <label>Cliente
         <select id="select-cliente-equipamentos">
           <option value="">Selecione um cliente</option>
@@ -249,6 +258,23 @@ function renderEquipamentos() {
       </label>
     </div>
     <div class="card-list">${linhas}</div>
+    <div class="card">
+      <h2 class="section-title">Marcas atendidas</h2>
+      <div class="card-list">
+        ${estado.marcasSuportadas
+          .map(
+            (m) => `
+          <div class="card-item">
+            <div class="card-item-main">
+              <strong>${m.marca}</strong>
+              <small>Garantia padrão: ${m.garantiaMeses} meses</small>
+            </div>
+          </div>
+        `,
+          )
+          .join('')}
+      </div>
+    </div>
     <div class="card">
       <h2 class="section-title">Novo equipamento</h2>
       <form id="form-equipamento">

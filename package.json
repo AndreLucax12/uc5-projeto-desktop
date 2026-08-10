@@ -1,6 +1,6 @@
 {
   "name": "TechOS - Gerenciador de assistência técnica",
-  "version": "2.0.11",
+  "version": "2.0.12",
   "main": "dist-electron/main.js",
   "description": "Projeto de referência: exercícios IPC com Electron + Vite + TypeScript",
   "scripts": {

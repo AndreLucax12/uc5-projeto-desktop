@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import path from "path";
-import type { clientes, equipamentos, ordens_de_servico } from "./types";
+import type { clientes, equipamentos, ordens_de_servico, marca_suportada } from "./types";
 import { pool } from "./db";
 let mainWindow: BrowserWindow | null = null;
 
@@ -81,6 +81,16 @@ ipcMain.handle('equipamentos:criar', async (_event, novoEquipamento: Omit<equipa
   )
   return resultado.rows[0]
 })
+
+const marcasSuportadas: marca_suportada[] = [
+  { marca: 'Samsung', garantiaMeses: 12 },
+  { marca: 'Apple', garantiaMeses: 12 },
+  { marca: 'Motorola', garantiaMeses: 12 },
+  { marca: 'Xiaomi', garantiaMeses: 12 },
+  { marca: 'LG', garantiaMeses: 6 },
+]
+
+ipcMain.handle('equipamentos:listar-marcas-suportadas', async () => marcasSuportadas)
 
 ipcMain.handle('os:listar', async () => {
   const resultado = await pool.query<ordens_de_servico>(
