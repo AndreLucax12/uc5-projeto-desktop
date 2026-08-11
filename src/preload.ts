@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('api', {
     listar: (): Promise<clientes[]> => ipcRenderer.invoke('clientes:listar'),
     criar: (cliente: Omit<clientes, 'id'>): Promise<clientes> =>
       ipcRenderer.invoke('clientes:criar', cliente),
+    atualizar: (id: number, cliente: Omit<clientes, 'id'>): Promise<clientes> =>
+      ipcRenderer.invoke('clientes:atualizar', id, cliente),
+    excluir: (id: number): Promise<{ sucesso: boolean }> =>
+      ipcRenderer.invoke('clientes:excluir', id),
   },
   equipamentos: {
     listar: (): Promise<equipamentos[]> => ipcRenderer.invoke('equipamentos:listar'),

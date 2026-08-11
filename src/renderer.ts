@@ -7,6 +7,8 @@ declare global {
       clientes: {
         listar: () => Promise<clientes[]>
         criar: (cliente: Omit<clientes, 'id'>) => Promise<clientes>
+        atualizar: (id: number, cliente: Omit<clientes, 'id'>) => Promise<clientes>
+        excluir: (id: number) => Promise<{ sucesso: boolean }>
       }
       equipamentos: {
         listar: () => Promise<equipamentos[]>
@@ -36,6 +38,7 @@ const estado: {
   marcasSuportadas: marca_suportada[]
   clienteFiltroEquipamentos: number | null
   clienteFormOS: number | null
+  clienteEditando: number | null
 } = {
   aba: 'clientes',
   clientes: [],
@@ -44,6 +47,7 @@ const estado: {
   marcasSuportadas: [],
   clienteFiltroEquipamentos: null,
   clienteFormOS: null,
+  clienteEditando: null,
 }
 
 
@@ -167,16 +171,40 @@ function renderClientes() {
   const secao = document.getElementById('secao-clientes') as HTMLElement
   const linhas = estado.clientes.length
     ? estado.clientes
-        .map(
-          (c) => `
+        .map((c) => {
+          if (estado.clienteEditando === c.id) {
+            return `
+        <div class="card-item">
+          <form class="form-editar-cliente" data-id="${c.id}">
+            <div class="form-grid">
+              <label>Nome
+                <input type="text" name="nome" value="${c.nome}" required />
+              </label>
+              <label>Telefone
+                <input type="text" name="telefone" value="${c.telefone}" required />
+              </label>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="secondary" data-cancelar-edicao="${c.id}">Cancelar</button>
+              <button type="submit">Salvar</button>
+            </div>
+          </form>
+        </div>
+      `
+          }
+          return `
         <div class="card-item">
           <div class="card-item-main">
             <strong>${c.nome}</strong>
             <small>${c.telefone}</small>
           </div>
+          <div class="modal-actions">
+            <button type="button" class="secondary" data-editar-cliente="${c.id}">Editar</button>
+            <button type="button" class="secondary" data-excluir-cliente="${c.id}">Excluir</button>
+          </div>
         </div>
-      `,
-        )
+      `
+        })
         .join('')
     : '<p class="empty-state">Nenhum cliente cadastrado ainda.</p>'
 
@@ -211,6 +239,53 @@ function renderClientes() {
     renderClientes()
     renderEquipamentos()
     renderOS()
+  })
+
+  secao.querySelectorAll<HTMLButtonElement>('[data-editar-cliente]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      estado.clienteEditando = Number(botao.dataset.editarCliente)
+      renderClientes()
+    })
+  })
+
+  secao.querySelectorAll<HTMLButtonElement>('[data-cancelar-edicao]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      estado.clienteEditando = null
+      renderClientes()
+    })
+  })
+
+  secao.querySelectorAll<HTMLFormElement>('.form-editar-cliente').forEach((formEdicao) => {
+    formEdicao.addEventListener('submit', async (evento) => {
+      evento.preventDefault()
+      const id = Number(formEdicao.dataset.id)
+      const dados = new FormData(formEdicao)
+      const nome = String(dados.get('nome') ?? '').trim()
+      const telefone = String(dados.get('telefone') ?? '').trim()
+      if (!nome || !telefone) return
+      await window.api.clientes.atualizar(id, { nome, telefone })
+      estado.clienteEditando = null
+      estado.clientes = await window.api.clientes.listar()
+      renderClientes()
+      renderEquipamentos()
+      renderOS()
+    })
+  })
+
+  secao.querySelectorAll<HTMLButtonElement>('[data-excluir-cliente]').forEach((botao) => {
+    botao.addEventListener('click', async () => {
+      const id = Number(botao.dataset.excluirCliente)
+      const cliente = estado.clientes.find((c) => c.id === id)
+      const confirmou = window.confirm(`Excluir o cliente "${cliente?.nome ?? ''}"? Essa ação não pode ser desfeita.`)
+      if (!confirmou) return
+      try {
+        await window.api.clientes.excluir(id)
+        estado.clientes = await window.api.clientes.listar()
+        renderClientes()
+      } catch {
+        window.alert('Não foi possível excluir: este cliente ainda tem equipamentos cadastrados.')
+      }
+    })
   })
 }
 

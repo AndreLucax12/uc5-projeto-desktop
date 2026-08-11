@@ -61,6 +61,21 @@ ipcMain.handle(
   },
 );
 
+ipcMain.handle('clientes:atualizar', async (_event, id: number, dadosCliente: Omit<clientes, 'id'>) => {
+  const resultado = await pool.query<clientes>(
+    'UPDATE clientes SET nome = $1, telefone = $2 WHERE id = $3 RETURNING id, nome, telefone',
+    [dadosCliente.nome, dadosCliente.telefone, id],
+  )
+  if (resultado.rowCount === 0) throw new Error('Cliente não encontrado')
+  return resultado.rows[0]
+})
+
+ipcMain.handle('clientes:excluir', async (_event, id: number) => {
+  const resultado = await pool.query('DELETE FROM clientes WHERE id = $1', [id])
+  if (resultado.rowCount === 0) throw new Error('Cliente não encontrado')
+  return { sucesso: true }
+})
+
 ipcMain.handle('equipamentos:listar', async () => {
   const resultado = await pool.query<equipamentos>('SELECT id, marca, modelo, id_cliente FROM equipamentos ORDER BY id')
   return resultado.rows
