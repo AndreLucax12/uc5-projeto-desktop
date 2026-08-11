@@ -97,6 +97,21 @@ ipcMain.handle('equipamentos:criar', async (_event, novoEquipamento: Omit<equipa
   return resultado.rows[0]
 })
 
+ipcMain.handle('equipamentos:atualizar', async (_event, id: number, dadosEquipamento: Omit<equipamentos, 'id' | 'id_cliente'>) => {
+  const resultado = await pool.query<equipamentos>(
+    'UPDATE equipamentos SET marca = $1, modelo = $2 WHERE id = $3 RETURNING id, marca, modelo, id_cliente',
+    [dadosEquipamento.marca, dadosEquipamento.modelo, id],
+  )
+  if (resultado.rowCount === 0) throw new Error('Equipamento não encontrado')
+  return resultado.rows[0]
+})
+
+ipcMain.handle('equipamentos:excluir', async (_event, id: number) => {
+  const resultado = await pool.query('DELETE FROM equipamentos WHERE id = $1', [id])
+  if (resultado.rowCount === 0) throw new Error('Equipamento não encontrado')
+  return { sucesso: true }
+})
+
 const marcasSuportadas: marca_suportada[] = [
   { marca: 'Samsung', garantiaMeses: 12 },
   { marca: 'Apple', garantiaMeses: 12 },

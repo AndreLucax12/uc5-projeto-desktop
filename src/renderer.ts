@@ -14,6 +14,8 @@ declare global {
         listar: () => Promise<equipamentos[]>
         listarPorCliente: (idCliente: number) => Promise<equipamentos[]>
         criar: (equipamento: Omit<equipamentos, 'id'>) => Promise<equipamentos>
+        atualizar: (id: number, equipamento: Omit<equipamentos, 'id' | 'id_cliente'>) => Promise<equipamentos>
+        excluir: (id: number) => Promise<{ sucesso: boolean }>
         listarMarcasSuportadas: () => Promise<marca_suportada[]>
       }
 
@@ -39,6 +41,7 @@ const estado: {
   clienteFiltroEquipamentos: number | null
   clienteFormOS: number | null
   clienteEditando: number | null
+  equipamentoEditando: number | null
 } = {
   aba: 'clientes',
   clientes: [],
@@ -48,6 +51,7 @@ const estado: {
   clienteFiltroEquipamentos: null,
   clienteFormOS: null,
   clienteEditando: null,
+  equipamentoEditando: null,
 }
 
 
@@ -304,16 +308,40 @@ function renderEquipamentos() {
 
   const linhas = equipamentosFiltrados.length
     ? equipamentosFiltrados
-        .map(
-          (e) => `
+        .map((e) => {
+          if (estado.equipamentoEditando === e.id) {
+            return `
+        <div class="card-item">
+          <form class="form-editar-equipamento" data-id="${e.id}">
+            <div class="form-grid">
+              <label>Marca
+                <input type="text" name="marca" value="${e.marca}" required />
+              </label>
+              <label>Modelo
+                <input type="text" name="modelo" value="${e.modelo}" required />
+              </label>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="secondary" data-cancelar-edicao-equipamento="${e.id}">Cancelar</button>
+              <button type="submit">Salvar</button>
+            </div>
+          </form>
+        </div>
+      `
+          }
+          return `
         <div class="card-item">
           <div class="card-item-main">
             <strong>${e.marca} ${e.modelo}</strong>
             <small>${nomeCliente(e.id_cliente)}</small>
           </div>
+          <div class="modal-actions">
+            <button type="button" class="secondary" data-editar-equipamento="${e.id}">Editar</button>
+            <button type="button" class="secondary" data-excluir-equipamento="${e.id}">Excluir</button>
+          </div>
         </div>
-      `,
-        )
+      `
+        })
         .join('')
     : `<p class="empty-state">${
         estado.clienteFiltroEquipamentos
@@ -385,6 +413,54 @@ function renderEquipamentos() {
     estado.equipamentos = await window.api.equipamentos.listar()
     renderEquipamentos()
     renderOS()
+  })
+
+  secao.querySelectorAll<HTMLButtonElement>('[data-editar-equipamento]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      estado.equipamentoEditando = Number(botao.dataset.editarEquipamento)
+      renderEquipamentos()
+    })
+  })
+
+  secao.querySelectorAll<HTMLButtonElement>('[data-cancelar-edicao-equipamento]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      estado.equipamentoEditando = null
+      renderEquipamentos()
+    })
+  })
+
+  secao.querySelectorAll<HTMLFormElement>('.form-editar-equipamento').forEach((formEdicao) => {
+    formEdicao.addEventListener('submit', async (evento) => {
+      evento.preventDefault()
+      const id = Number(formEdicao.dataset.id)
+      const dados = new FormData(formEdicao)
+      const marca = String(dados.get('marca') ?? '').trim()
+      const modelo = String(dados.get('modelo') ?? '').trim()
+      if (!marca || !modelo) return
+      await window.api.equipamentos.atualizar(id, { marca, modelo })
+      estado.equipamentoEditando = null
+      estado.equipamentos = await window.api.equipamentos.listar()
+      renderEquipamentos()
+      renderOS()
+    })
+  })
+
+  secao.querySelectorAll<HTMLButtonElement>('[data-excluir-equipamento]').forEach((botao) => {
+    botao.addEventListener('click', async () => {
+      const id = Number(botao.dataset.excluirEquipamento)
+      const equipamento = estado.equipamentos.find((e) => e.id === id)
+      const confirmou = window.confirm(
+        `Excluir o equipamento "${equipamento?.marca ?? ''} ${equipamento?.modelo ?? ''}"? Essa ação não pode ser desfeita.`,
+      )
+      if (!confirmou) return
+      try {
+        await window.api.equipamentos.excluir(id)
+        estado.equipamentos = await window.api.equipamentos.listar()
+        renderEquipamentos()
+      } catch {
+        window.alert('Não foi possível excluir: este equipamento ainda tem ordens de serviço registradas.')
+      }
+    })
   })
 }
 

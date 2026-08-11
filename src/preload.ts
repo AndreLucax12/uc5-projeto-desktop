@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('equipamentos:listar-por-cliente', idCliente),
     criar: (equipamento: Omit<equipamentos, 'id'>): Promise<equipamentos> =>
       ipcRenderer.invoke('equipamentos:criar', equipamento),
+    atualizar: (id: number, equipamento: Omit<equipamentos, 'id' | 'id_cliente'>): Promise<equipamentos> =>
+      ipcRenderer.invoke('equipamentos:atualizar', id, equipamento),
+    excluir: (id: number): Promise<{ sucesso: boolean }> =>
+      ipcRenderer.invoke('equipamentos:excluir', id),
     listarMarcasSuportadas: (): Promise<marca_suportada[]> =>
       ipcRenderer.invoke('equipamentos:listar-marcas-suportadas'),
   },
