@@ -1,50 +1,68 @@
 import "./style.css";
-import type { clientes, equipamentos, ordens_de_servico, marca_suportada } from "./types";
+import type {
+  clientes,
+  equipamentos,
+  ordens_de_servico,
+  marca_suportada,
+} from "./types";
 declare global {
   interface Window {
     api: {
-      ping: () => Promise<string>
+      ping: () => Promise<string>;
       clientes: {
-        listar: () => Promise<clientes[]>
-        criar: (cliente: Omit<clientes, 'id'>) => Promise<clientes>
-        atualizar: (id: number, cliente: Omit<clientes, 'id'>) => Promise<clientes>
-        excluir: (id: number) => Promise<{ sucesso: boolean }>
-      }
+        listar: () => Promise<clientes[]>;
+        criar: (cliente: Omit<clientes, "id">) => Promise<clientes>;
+        atualizar: (
+          id: number,
+          cliente: Omit<clientes, "id">,
+        ) => Promise<clientes>;
+        excluir: (id: number) => Promise<{ sucesso: boolean }>;
+      };
       equipamentos: {
-        listar: () => Promise<equipamentos[]>
-        listarPorCliente: (idCliente: number) => Promise<equipamentos[]>
-        criar: (equipamento: Omit<equipamentos, 'id'>) => Promise<equipamentos>
-        atualizar: (id: number, equipamento: Omit<equipamentos, 'id' | 'id_cliente'>) => Promise<equipamentos>
-        excluir: (id: number) => Promise<{ sucesso: boolean }>
-        listarMarcasSuportadas: () => Promise<marca_suportada[]>
-      }
+        listar: () => Promise<equipamentos[]>;
+        listarPorCliente: (idCliente: number) => Promise<equipamentos[]>;
+        criar: (equipamento: Omit<equipamentos, "id">) => Promise<equipamentos>;
+        atualizar: (
+          id: number,
+          equipamento: Omit<equipamentos, "id" | "id_cliente">,
+        ) => Promise<equipamentos>;
+        excluir: (id: number) => Promise<{ sucesso: boolean }>;
+        listarMarcasSuportadas: () => Promise<marca_suportada[]>;
+      };
 
       os: {
-        listar: () => Promise<ordens_de_servico[]>
-        criar: (os: Omit<ordens_de_servico, 'id' | 'status' | 'valor_total'>) => Promise<ordens_de_servico>
-        atualizarStatus: (id: number, status: ordens_de_servico['status'], valorTotal?: number) => Promise<ordens_de_servico>
-        excluir: (id: number) => Promise<{ sucesso: boolean }>
-        relatorioFaturamento: () => Promise<{ total: number }>
-      }
-    }
+        listar: () => Promise<ordens_de_servico[]>;
+        criar: (
+          os: Omit<ordens_de_servico, "id" | "status" | "valor_total">,
+        ) => Promise<ordens_de_servico>;
+        atualizarStatus: (
+          id: number,
+          status: ordens_de_servico["status"],
+          valorTotal?: number,
+        ) => Promise<ordens_de_servico>;
+        excluir: (id: number) => Promise<{ sucesso: boolean }>;
+        relatorioFaturamento: () => Promise<{ total: number }>;
+      };
+    };
   }
 }
 
-
-type Aba = 'clientes' | 'equipamentos' | 'os' | 'relatorio'
+type Aba = "clientes" | "equipamentos" | "os" | "relatorio";
 
 const estado: {
-  aba: Aba
-  clientes: clientes[]
-  equipamentos: equipamentos[]
-  ordens: ordens_de_servico[]
-  marcasSuportadas: marca_suportada[]
-  clienteFiltroEquipamentos: number | null
-  clienteFormOS: number | null
-  clienteEditando: number | null
-  equipamentoEditando: number | null
+  aba: Aba;
+  clientes: clientes[];
+  equipamentos: equipamentos[];
+  ordens: ordens_de_servico[];
+  marcasSuportadas: marca_suportada[];
+  clienteFiltroEquipamentos: number | null;
+  clienteFormOS: number | null;
+  clienteEditando: number | null;
+  equipamentoEditando: number | null;
+  filtroClienteOS: number | null;
+  filtroStatusOS: ordens_de_servico["status"] | "todas";
 } = {
-  aba: 'clientes',
+  aba: "clientes",
   clientes: [],
   equipamentos: [],
   ordens: [],
@@ -53,32 +71,41 @@ const estado: {
   clienteFormOS: null,
   clienteEditando: null,
   equipamentoEditando: null,
-}
+  filtroClienteOS: null,
+  filtroStatusOS: "todas",
+};
 
-
-const proximoStatus: Record<ordens_de_servico['status'], ordens_de_servico['status'] | null> = {
-  aberta: 'em andamento',
-  'em andamento': 'finalizada',
+const proximoStatus: Record<
+  ordens_de_servico["status"],
+  ordens_de_servico["status"] | null
+> = {
+  aberta: "em andamento",
+  "em andamento": "finalizada",
   finalizada: null,
-}
+};
 
-function classeBadge(status: ordens_de_servico['status']): string {
-  return `badge badge-${status.replace(/\s+/g, '-')}`
+function classeBadge(status: ordens_de_servico["status"]): string {
+  return `badge badge-${status.replace(/\s+/g, "-")}`;
 }
 
 function nomeCliente(idCliente: number): string {
-  return estado.clientes.find((c) => c.id === idCliente)?.nome ?? `Cliente #${idCliente}`
+  return (
+    estado.clientes.find((c) => c.id === idCliente)?.nome ??
+    `Cliente #${idCliente}`
+  );
 }
 
 function descricaoEquipamento(idEquipamento: number): string {
-  const equipamento = estado.equipamentos.find((e) => e.id === idEquipamento)
-  return equipamento ? `${equipamento.marca} ${equipamento.modelo}` : `Equipamento #${idEquipamento}`
+  const equipamento = estado.equipamentos.find((e) => e.id === idEquipamento);
+  return equipamento
+    ? `${equipamento.marca} ${equipamento.modelo}`
+    : `Equipamento #${idEquipamento}`;
 }
 
 function pedirValor(mensagem: string): Promise<number | null> {
   return new Promise((resolve) => {
-    const overlay = document.createElement('div')
-    overlay.className = 'modal-overlay'
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
     overlay.innerHTML = `
       <div class="modal-card">
         <p>${mensagem}</p>
@@ -89,34 +116,37 @@ function pedirValor(mensagem: string): Promise<number | null> {
           <button type="button" id="modal-confirmar">Confirmar</button>
         </div>
       </div>
-    `
-    document.body.appendChild(overlay)
+    `;
+    document.body.appendChild(overlay);
 
-    const input = overlay.querySelector('#modal-valor-input') as HTMLInputElement
-    const erro = overlay.querySelector('#modal-valor-erro') as HTMLElement
-    input.focus()
-    input.select()
+    const input = overlay.querySelector(
+      "#modal-valor-input",
+    ) as HTMLInputElement;
+    const erro = overlay.querySelector("#modal-valor-erro") as HTMLElement;
+    input.focus();
+    input.select();
 
     const fechar = (resultado: number | null) => {
-      overlay.remove()
-      resolve(resultado)
-    }
+      overlay.remove();
+      resolve(resultado);
+    };
 
-    overlay.querySelector('#modal-cancelar')!.addEventListener('click', () => fechar(null))
-    overlay.querySelector('#modal-confirmar')!.addEventListener('click', () => {
-      const valor = Number(input.value)
+    overlay
+      .querySelector("#modal-cancelar")!
+      .addEventListener("click", () => fechar(null));
+    overlay.querySelector("#modal-confirmar")!.addEventListener("click", () => {
+      const valor = Number(input.value);
       if (Number.isNaN(valor) || valor < 0) {
-        erro.textContent = 'Digite um valor válido.'
-        return
+        erro.textContent = "Digite um valor válido.";
+        return;
       }
-      fechar(valor)
-    })
-  })
+      fechar(valor);
+    });
+  });
 }
 
-
 function montarCasca() {
-  const appElement = document.getElementById('app') as HTMLDivElement
+  const appElement = document.getElementById("app") as HTMLDivElement;
   appElement.innerHTML = `
     <header class="app-header">
       <svg class="logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -140,40 +170,44 @@ function montarCasca() {
     <section class="section" id="secao-equipamentos"></section>
     <section class="section" id="secao-os"></section>
     <section class="section" id="secao-relatorio"></section>
-  `
+  `;
 
-  document.querySelectorAll<HTMLButtonElement>('.tab-button').forEach((botao) => {
-    botao.addEventListener('click', () => {
-      estado.aba = botao.dataset.tab as Aba
-      atualizarAbaAtiva()
-    })
-  })
+  document
+    .querySelectorAll<HTMLButtonElement>(".tab-button")
+    .forEach((botao) => {
+      botao.addEventListener("click", () => {
+        estado.aba = botao.dataset.tab as Aba;
+        atualizarAbaAtiva();
+      });
+    });
 }
 function atualizarAbaAtiva() {
-  document.querySelectorAll<HTMLButtonElement>('.tab-button').forEach((botao) => {
-    botao.classList.toggle('active', botao.dataset.tab === estado.aba)
-  })
-  document.querySelectorAll<HTMLElement>('.section').forEach((secao) => {
-    secao.classList.toggle('active', secao.id === `secao-${estado.aba}`)
-  })
+  document
+    .querySelectorAll<HTMLButtonElement>(".tab-button")
+    .forEach((botao) => {
+      botao.classList.toggle("active", botao.dataset.tab === estado.aba);
+    });
+  document.querySelectorAll<HTMLElement>(".section").forEach((secao) => {
+    secao.classList.toggle("active", secao.id === `secao-${estado.aba}`);
+  });
 }
 
 async function carregarDados() {
-  const [clientesResp, equipamentosResp, ordensResp, marcasResp] = await Promise.all([
-    window.api.clientes.listar(),
-    window.api.equipamentos.listar(),
-    window.api.os.listar(),
-    window.api.equipamentos.listarMarcasSuportadas(),
-  ])
-  estado.clientes = clientesResp
-  estado.equipamentos = equipamentosResp
-  estado.ordens = ordensResp
-  estado.marcasSuportadas = marcasResp
+  const [clientesResp, equipamentosResp, ordensResp, marcasResp] =
+    await Promise.all([
+      window.api.clientes.listar(),
+      window.api.equipamentos.listar(),
+      window.api.os.listar(),
+      window.api.equipamentos.listarMarcasSuportadas(),
+    ]);
+  estado.clientes = clientesResp;
+  estado.equipamentos = equipamentosResp;
+  estado.ordens = ordensResp;
+  estado.marcasSuportadas = marcasResp;
 }
 
-
 function renderClientes() {
-  const secao = document.getElementById('secao-clientes') as HTMLElement
+  const secao = document.getElementById("secao-clientes") as HTMLElement;
   const linhas = estado.clientes.length
     ? estado.clientes
         .map((c) => {
@@ -195,7 +229,7 @@ function renderClientes() {
             </div>
           </form>
         </div>
-      `
+      `;
           }
           return `
         <div class="card-item">
@@ -208,10 +242,10 @@ function renderClientes() {
             <button type="button" class="secondary" data-excluir-cliente="${c.id}">Excluir</button>
           </div>
         </div>
-      `
+      `;
         })
-        .join('')
-    : '<p class="empty-state">Nenhum cliente cadastrado ainda.</p>'
+        .join("")
+    : '<p class="empty-state">Nenhum cliente cadastrado ainda.</p>';
 
   secao.innerHTML = `
     <h2 class="section-title">Clientes</h2>
@@ -230,82 +264,96 @@ function renderClientes() {
         <button type="submit">Cadastrar</button>
       </form>
     </div>
-  `
+  `;
 
-  const form = document.getElementById('form-cliente') as HTMLFormElement
-  form.addEventListener('submit', async (evento) => {
-    evento.preventDefault()
-    const dados = new FormData(form)
-    const nome = String(dados.get('nome') ?? '').trim()
-    const telefone = String(dados.get('telefone') ?? '').trim()
-    if (!nome || !telefone) return
-    await window.api.clientes.criar({ nome, telefone })
-    estado.clientes = await window.api.clientes.listar()
-    renderClientes()
-    renderEquipamentos()
-    renderOS()
-  })
+  const form = document.getElementById("form-cliente") as HTMLFormElement;
+  form.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const dados = new FormData(form);
+    const nome = String(dados.get("nome") ?? "").trim();
+    const telefone = String(dados.get("telefone") ?? "").trim();
+    if (!nome || !telefone) return;
+    await window.api.clientes.criar({ nome, telefone });
+    estado.clientes = await window.api.clientes.listar();
+    renderClientes();
+    renderEquipamentos();
+    renderOS();
+  });
 
-  secao.querySelectorAll<HTMLButtonElement>('[data-editar-cliente]').forEach((botao) => {
-    botao.addEventListener('click', () => {
-      estado.clienteEditando = Number(botao.dataset.editarCliente)
-      renderClientes()
-    })
-  })
+  secao
+    .querySelectorAll<HTMLButtonElement>("[data-editar-cliente]")
+    .forEach((botao) => {
+      botao.addEventListener("click", () => {
+        estado.clienteEditando = Number(botao.dataset.editarCliente);
+        renderClientes();
+      });
+    });
 
-  secao.querySelectorAll<HTMLButtonElement>('[data-cancelar-edicao]').forEach((botao) => {
-    botao.addEventListener('click', () => {
-      estado.clienteEditando = null
-      renderClientes()
-    })
-  })
+  secao
+    .querySelectorAll<HTMLButtonElement>("[data-cancelar-edicao]")
+    .forEach((botao) => {
+      botao.addEventListener("click", () => {
+        estado.clienteEditando = null;
+        renderClientes();
+      });
+    });
 
-  secao.querySelectorAll<HTMLFormElement>('.form-editar-cliente').forEach((formEdicao) => {
-    formEdicao.addEventListener('submit', async (evento) => {
-      evento.preventDefault()
-      const id = Number(formEdicao.dataset.id)
-      const dados = new FormData(formEdicao)
-      const nome = String(dados.get('nome') ?? '').trim()
-      const telefone = String(dados.get('telefone') ?? '').trim()
-      if (!nome || !telefone) return
-      await window.api.clientes.atualizar(id, { nome, telefone })
-      estado.clienteEditando = null
-      estado.clientes = await window.api.clientes.listar()
-      renderClientes()
-      renderEquipamentos()
-      renderOS()
-    })
-  })
+  secao
+    .querySelectorAll<HTMLFormElement>(".form-editar-cliente")
+    .forEach((formEdicao) => {
+      formEdicao.addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+        const id = Number(formEdicao.dataset.id);
+        const dados = new FormData(formEdicao);
+        const nome = String(dados.get("nome") ?? "").trim();
+        const telefone = String(dados.get("telefone") ?? "").trim();
+        if (!nome || !telefone) return;
+        await window.api.clientes.atualizar(id, { nome, telefone });
+        estado.clienteEditando = null;
+        estado.clientes = await window.api.clientes.listar();
+        renderClientes();
+        renderEquipamentos();
+        renderOS();
+      });
+    });
 
-  secao.querySelectorAll<HTMLButtonElement>('[data-excluir-cliente]').forEach((botao) => {
-    botao.addEventListener('click', async () => {
-      const id = Number(botao.dataset.excluirCliente)
-      const cliente = estado.clientes.find((c) => c.id === id)
-      const confirmou = window.confirm(`Excluir o cliente "${cliente?.nome ?? ''}"? Essa ação não pode ser desfeita.`)
-      if (!confirmou) return
-      try {
-        await window.api.clientes.excluir(id)
-        estado.clientes = await window.api.clientes.listar()
-        renderClientes()
-      } catch {
-        window.alert('Não foi possível excluir: este cliente ainda tem equipamentos cadastrados.')
-      }
-    })
-  })
+  secao
+    .querySelectorAll<HTMLButtonElement>("[data-excluir-cliente]")
+    .forEach((botao) => {
+      botao.addEventListener("click", async () => {
+        const id = Number(botao.dataset.excluirCliente);
+        const cliente = estado.clientes.find((c) => c.id === id);
+        const confirmou = window.confirm(
+          `Excluir o cliente "${cliente?.nome ?? ""}"? Essa ação não pode ser desfeita.`,
+        );
+        if (!confirmou) return;
+        try {
+          await window.api.clientes.excluir(id);
+          estado.clientes = await window.api.clientes.listar();
+          renderClientes();
+        } catch {
+          window.alert(
+            "Não foi possível excluir: este cliente ainda tem equipamentos cadastrados.",
+          );
+        }
+      });
+    });
 }
 
 function renderEquipamentos() {
-  const secao = document.getElementById('secao-equipamentos') as HTMLElement
+  const secao = document.getElementById("secao-equipamentos") as HTMLElement;
   const opcoesClientes = estado.clientes
     .map(
       (c) =>
-        `<option value="${c.id}" ${estado.clienteFiltroEquipamentos === c.id ? 'selected' : ''}>${c.nome}</option>`,
+        `<option value="${c.id}" ${estado.clienteFiltroEquipamentos === c.id ? "selected" : ""}>${c.nome}</option>`,
     )
-    .join('')
+    .join("");
 
   const equipamentosFiltrados = estado.clienteFiltroEquipamentos
-    ? estado.equipamentos.filter((e) => e.id_cliente === estado.clienteFiltroEquipamentos)
-    : []
+    ? estado.equipamentos.filter(
+        (e) => e.id_cliente === estado.clienteFiltroEquipamentos,
+      )
+    : [];
 
   const linhas = equipamentosFiltrados.length
     ? equipamentosFiltrados
@@ -328,7 +376,7 @@ function renderEquipamentos() {
             </div>
           </form>
         </div>
-      `
+      `;
           }
           return `
         <div class="card-item">
@@ -341,14 +389,14 @@ function renderEquipamentos() {
             <button type="button" class="secondary" data-excluir-equipamento="${e.id}">Excluir</button>
           </div>
         </div>
-      `
+      `;
         })
-        .join('')
+        .join("")
     : `<p class="empty-state">${
         estado.clienteFiltroEquipamentos
-          ? 'Nenhum equipamento cadastrado para este cliente.'
-          : 'Selecione um cliente para ver os equipamentos.'
-      }</p>`
+          ? "Nenhum equipamento cadastrado para este cliente."
+          : "Selecione um cliente para ver os equipamentos."
+      }</p>`;
 
   secao.innerHTML = `
     <h2 class="section-title">Equipamentos</h2>
@@ -376,7 +424,7 @@ function renderEquipamentos() {
           </div>
         `,
           )
-          .join('')}
+          .join("")}
       </div>
     </div>
     <div class="card">
@@ -390,104 +438,141 @@ function renderEquipamentos() {
             <input type="text" name="modelo" required />
           </label>
         </div>
-        <button type="submit" ${estado.clienteFiltroEquipamentos ? '' : 'disabled'}>Cadastrar</button>
+        <button type="submit" ${estado.clienteFiltroEquipamentos ? "" : "disabled"}>Cadastrar</button>
       </form>
     </div>
-  `
+  `;
 
-  const select = document.getElementById('select-cliente-equipamentos') as HTMLSelectElement
-  select.value = estado.clienteFiltroEquipamentos ? String(estado.clienteFiltroEquipamentos) : ''
-  select.addEventListener('change', () => {
-    estado.clienteFiltroEquipamentos = select.value ? Number(select.value) : null
-    renderEquipamentos()
-  })
+  const select = document.getElementById(
+    "select-cliente-equipamentos",
+  ) as HTMLSelectElement;
+  select.value = estado.clienteFiltroEquipamentos
+    ? String(estado.clienteFiltroEquipamentos)
+    : "";
+  select.addEventListener("change", () => {
+    estado.clienteFiltroEquipamentos = select.value
+      ? Number(select.value)
+      : null;
+    renderEquipamentos();
+  });
 
-  const form = document.getElementById('form-equipamento') as HTMLFormElement
-  form.addEventListener('submit', async (evento) => {
-    evento.preventDefault()
-    if (!estado.clienteFiltroEquipamentos) return
-    const dados = new FormData(form)
-    const marca = String(dados.get('marca') ?? '').trim()
-    const modelo = String(dados.get('modelo') ?? '').trim()
-    if (!marca || !modelo) return
-    await window.api.equipamentos.criar({ marca, modelo, id_cliente: estado.clienteFiltroEquipamentos })
-    estado.equipamentos = await window.api.equipamentos.listar()
-    renderEquipamentos()
-    renderOS()
-  })
+  const form = document.getElementById("form-equipamento") as HTMLFormElement;
+  form.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    if (!estado.clienteFiltroEquipamentos) return;
+    const dados = new FormData(form);
+    const marca = String(dados.get("marca") ?? "").trim();
+    const modelo = String(dados.get("modelo") ?? "").trim();
+    if (!marca || !modelo) return;
+    await window.api.equipamentos.criar({
+      marca,
+      modelo,
+      id_cliente: estado.clienteFiltroEquipamentos,
+    });
+    estado.equipamentos = await window.api.equipamentos.listar();
+    renderEquipamentos();
+    renderOS();
+  });
 
-  secao.querySelectorAll<HTMLButtonElement>('[data-editar-equipamento]').forEach((botao) => {
-    botao.addEventListener('click', () => {
-      estado.equipamentoEditando = Number(botao.dataset.editarEquipamento)
-      renderEquipamentos()
-    })
-  })
+  secao
+    .querySelectorAll<HTMLButtonElement>("[data-editar-equipamento]")
+    .forEach((botao) => {
+      botao.addEventListener("click", () => {
+        estado.equipamentoEditando = Number(botao.dataset.editarEquipamento);
+        renderEquipamentos();
+      });
+    });
 
-  secao.querySelectorAll<HTMLButtonElement>('[data-cancelar-edicao-equipamento]').forEach((botao) => {
-    botao.addEventListener('click', () => {
-      estado.equipamentoEditando = null
-      renderEquipamentos()
-    })
-  })
+  secao
+    .querySelectorAll<HTMLButtonElement>("[data-cancelar-edicao-equipamento]")
+    .forEach((botao) => {
+      botao.addEventListener("click", () => {
+        estado.equipamentoEditando = null;
+        renderEquipamentos();
+      });
+    });
 
-  secao.querySelectorAll<HTMLFormElement>('.form-editar-equipamento').forEach((formEdicao) => {
-    formEdicao.addEventListener('submit', async (evento) => {
-      evento.preventDefault()
-      const id = Number(formEdicao.dataset.id)
-      const dados = new FormData(formEdicao)
-      const marca = String(dados.get('marca') ?? '').trim()
-      const modelo = String(dados.get('modelo') ?? '').trim()
-      if (!marca || !modelo) return
-      await window.api.equipamentos.atualizar(id, { marca, modelo })
-      estado.equipamentoEditando = null
-      estado.equipamentos = await window.api.equipamentos.listar()
-      renderEquipamentos()
-      renderOS()
-    })
-  })
+  secao
+    .querySelectorAll<HTMLFormElement>(".form-editar-equipamento")
+    .forEach((formEdicao) => {
+      formEdicao.addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+        const id = Number(formEdicao.dataset.id);
+        const dados = new FormData(formEdicao);
+        const marca = String(dados.get("marca") ?? "").trim();
+        const modelo = String(dados.get("modelo") ?? "").trim();
+        if (!marca || !modelo) return;
+        await window.api.equipamentos.atualizar(id, { marca, modelo });
+        estado.equipamentoEditando = null;
+        estado.equipamentos = await window.api.equipamentos.listar();
+        renderEquipamentos();
+        renderOS();
+      });
+    });
 
-  secao.querySelectorAll<HTMLButtonElement>('[data-excluir-equipamento]').forEach((botao) => {
-    botao.addEventListener('click', async () => {
-      const id = Number(botao.dataset.excluirEquipamento)
-      const equipamento = estado.equipamentos.find((e) => e.id === id)
-      const confirmou = window.confirm(
-        `Excluir o equipamento "${equipamento?.marca ?? ''} ${equipamento?.modelo ?? ''}"? Essa ação não pode ser desfeita.`,
-      )
-      if (!confirmou) return
-      try {
-        await window.api.equipamentos.excluir(id)
-        estado.equipamentos = await window.api.equipamentos.listar()
-        renderEquipamentos()
-      } catch {
-        window.alert('Não foi possível excluir: este equipamento ainda tem ordens de serviço registradas.')
-      }
-    })
-  })
+  secao
+    .querySelectorAll<HTMLButtonElement>("[data-excluir-equipamento]")
+    .forEach((botao) => {
+      botao.addEventListener("click", async () => {
+        const id = Number(botao.dataset.excluirEquipamento);
+        const equipamento = estado.equipamentos.find((e) => e.id === id);
+        const confirmou = window.confirm(
+          `Excluir o equipamento "${equipamento?.marca ?? ""} ${equipamento?.modelo ?? ""}"? Essa ação não pode ser desfeita.`,
+        );
+        if (!confirmou) return;
+        try {
+          await window.api.equipamentos.excluir(id);
+          estado.equipamentos = await window.api.equipamentos.listar();
+          renderEquipamentos();
+        } catch {
+          window.alert(
+            "Não foi possível excluir: este equipamento ainda tem ordens de serviço registradas.",
+          );
+        }
+      });
+    });
 }
 
 function renderOS() {
-  const secao = document.getElementById('secao-os') as HTMLElement
+  const secao = document.getElementById("secao-os") as HTMLElement;
 
   const opcoesClientes = estado.clientes
     .map(
-      (c) => `<option value="${c.id}" ${estado.clienteFormOS === c.id ? 'selected' : ''}>${c.nome}</option>`,
+      (c) =>
+        `<option value="${c.id}" ${estado.clienteFormOS === c.id ? "selected" : ""}>${c.nome}</option>`,
     )
-    .join('')
+    .join("");
 
   const equipamentosDoCliente = estado.clienteFormOS
     ? estado.equipamentos.filter((e) => e.id_cliente === estado.clienteFormOS)
-    : []
+    : [];
 
   const opcoesEquipamentos = equipamentosDoCliente
     .map((e) => `<option value="${e.id}">${e.marca} ${e.modelo}</option>`)
-    .join('')
+    .join("");
 
-  const ordensOrdenadas = [...estado.ordens].sort((a, b) => b.id - a.id)
+  const ordensOrdenadas = [...estado.ordens].sort((a, b) => b.id - a.id);
 
-  const linhas = ordensOrdenadas.length
-    ? ordensOrdenadas
+  const opcoesClientesFiltro = estado.clientes
+    .map(
+      (c) =>
+        `<option value="${c.id}" ${estado.filtroClienteOS === c.id ? "selected" : ""}>${c.nome}</option>`,
+    )
+    .join("");
+
+  const ordensFiltradas = ordensOrdenadas.filter((os) => {
+    if (estado.filtroStatusOS !== "todas" && os.status !== estado.filtroStatusOS) return false
+    if (estado.filtroClienteOS !== null) {
+      const equipamento = estado.equipamentos.find((e) => e.id === os.id_equipamento)
+      if (!equipamento || equipamento.id_cliente !== estado.filtroClienteOS) return false
+    }
+    return true
+  })
+
+  const linhas = ordensFiltradas.length
+    ? ordensFiltradas
         .map((os) => {
-          const proximo = proximoStatus[os.status]
+          const proximo = proximoStatus[os.status];
           return `
         <div class="card-item">
           <div class="card-item-main">
@@ -496,14 +581,16 @@ function renderOS() {
           </div>
           <span class="${classeBadge(os.status)}">${os.status}</span>
           <div class="modal-actions">
-            ${proximo ? `<button class="secondary" data-avancar="${os.id}">Marcar como "${proximo}"</button>` : ''}
+            ${proximo ? `<button class="secondary" data-avancar="${os.id}">Marcar como "${proximo}"</button>` : ""}
             <button class="secondary" data-excluir-os="${os.id}">Excluir</button>
           </div>
         </div>
-      `
+      `;
         })
-        .join('')
-    : '<p class="empty-state">Nenhuma ordem de serviço aberta ainda.</p>'
+        .join("")
+    : estado.ordens.length
+      ? '<p class="empty-state">Nenhuma OS encontrada para esse filtro.</p>'
+      : '<p class="empty-state">Nenhuma ordem de serviço aberta ainda.</p>';
 
   secao.innerHTML = `
     <h2 class="section-title">Abrir nova OS</h2>
@@ -517,7 +604,7 @@ function renderOS() {
             </select>
           </label>
           <label>Equipamento
-            <select name="id_equipamento" id="select-equipamento-os" ${equipamentosDoCliente.length ? '' : 'disabled'}>
+            <select name="id_equipamento" id="select-equipamento-os" ${equipamentosDoCliente.length ? "" : "disabled"}>
               <option value="">Selecione um equipamento</option>
               ${opcoesEquipamentos}
             </select>
@@ -530,65 +617,124 @@ function renderOS() {
       </form>
     </div>
     <h2 class="section-title">Ordens de serviço</h2>
+    <div class="card">
+      <div class="form-grid">
+        <label>Filtrar por cliente
+          <select id="filtro-cliente-os">
+            <option value="">Todos os clientes</option>
+            ${opcoesClientesFiltro}
+          </select>
+        </label>
+        <label>Filtrar por status
+          <select id="filtro-status-os">
+            <option value="todas">Todos os status</option>
+            <option value="aberta">Aberta</option>
+            <option value="em andamento">Em andamento</option>
+            <option value="finalizada">Finalizada</option>
+          </select>
+        </label>
+      </div>
+    </div>
     <div class="card-list">${linhas}</div>
-  `
+  `;
 
-  const selectCliente = document.getElementById('select-cliente-os') as HTMLSelectElement
-  selectCliente.value = estado.clienteFormOS ? String(estado.clienteFormOS) : ''
-  selectCliente.addEventListener('change', () => {
-    estado.clienteFormOS = selectCliente.value ? Number(selectCliente.value) : null
-    renderOS()
-  })
+  const selectCliente = document.getElementById(
+    "select-cliente-os",
+  ) as HTMLSelectElement;
+  selectCliente.value = estado.clienteFormOS
+    ? String(estado.clienteFormOS)
+    : "";
+  selectCliente.addEventListener("change", () => {
+    estado.clienteFormOS = selectCliente.value
+      ? Number(selectCliente.value)
+      : null;
+    renderOS();
+  });
 
-  const form = document.getElementById('form-os') as HTMLFormElement
-  form.addEventListener('submit', async (evento) => {
-    evento.preventDefault()
-    const dados = new FormData(form)
-    const idEquipamento = Number(dados.get('id_equipamento'))
-    const descricaoDefeito = String(dados.get('descricao_defeito') ?? '').trim()
-    if (!idEquipamento || !descricaoDefeito) return
-    await window.api.os.criar({ id_equipamento: idEquipamento, descricao_defeito: descricaoDefeito })
-    estado.ordens = await window.api.os.listar()
-    renderOS()
-    renderRelatorio()
-  })
+  const filtroCliente = document.getElementById(
+    "filtro-cliente-os",
+  ) as HTMLSelectElement;
+  filtroCliente.value = estado.filtroClienteOS
+    ? String(estado.filtroClienteOS)
+    : "";
+  filtroCliente.addEventListener("change", () => {
+    estado.filtroClienteOS = filtroCliente.value
+      ? Number(filtroCliente.value)
+      : null;
+    renderOS();
+  });
 
-    secao.querySelectorAll<HTMLButtonElement>('[data-avancar]').forEach((botao) => {
-      botao.addEventListener('click', async () => {
-      const id = Number(botao.dataset.avancar)
-      const os = estado.ordens.find((o) => o.id === id)
-      const proximo = os ? proximoStatus[os.status] : null
-      if (!proximo) return
+  const filtroStatus = document.getElementById(
+    "filtro-status-os",
+  ) as HTMLSelectElement;
+  filtroStatus.value = estado.filtroStatusOS;
+  filtroStatus.addEventListener("change", () => {
+    estado.filtroStatusOS = filtroStatus.value as
+      | ordens_de_servico["status"]
+      | "todas";
+    renderOS();
+  });
 
-      let valor: number | undefined
-      if (proximo === 'finalizada') {
-        const resultado = await pedirValor('Valor cobrado nesta OS (R$):')
-        if (resultado === null) return
-        valor = resultado
-      }
+  const form = document.getElementById("form-os") as HTMLFormElement;
+  form.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const dados = new FormData(form);
+    const idEquipamento = Number(dados.get("id_equipamento"));
+    const descricaoDefeito = String(
+      dados.get("descricao_defeito") ?? "",
+    ).trim();
+    if (!idEquipamento || !descricaoDefeito) return;
+    await window.api.os.criar({
+      id_equipamento: idEquipamento,
+      descricao_defeito: descricaoDefeito,
+    });
+    estado.ordens = await window.api.os.listar();
+    renderOS();
+    renderRelatorio();
+  });
 
-      await window.api.os.atualizarStatus(id, proximo, valor)
-      estado.ordens = await window.api.os.listar()
-      renderOS()
-      renderRelatorio()
-    })
-  })
+  secao
+    .querySelectorAll<HTMLButtonElement>("[data-avancar]")
+    .forEach((botao) => {
+      botao.addEventListener("click", async () => {
+        const id = Number(botao.dataset.avancar);
+        const os = estado.ordens.find((o) => o.id === id);
+        const proximo = os ? proximoStatus[os.status] : null;
+        if (!proximo) return;
 
-  secao.querySelectorAll<HTMLButtonElement>('[data-excluir-os]').forEach((botao) => {
-    botao.addEventListener('click', async () => {
-      const id = Number(botao.dataset.excluirOs)
-      const confirmou = window.confirm('Excluir esta ordem de serviço? Essa ação não pode ser desfeita.')
-      if (!confirmou) return
-      await window.api.os.excluir(id)
-      estado.ordens = await window.api.os.listar()
-      renderOS()
-      renderRelatorio()
-    })
-  })
+        let valor: number | undefined;
+        if (proximo === "finalizada") {
+          const resultado = await pedirValor("Valor cobrado nesta OS (R$):");
+          if (resultado === null) return;
+          valor = resultado;
+        }
+
+        await window.api.os.atualizarStatus(id, proximo, valor);
+        estado.ordens = await window.api.os.listar();
+        renderOS();
+        renderRelatorio();
+      });
+    });
+
+  secao
+    .querySelectorAll<HTMLButtonElement>("[data-excluir-os]")
+    .forEach((botao) => {
+      botao.addEventListener("click", async () => {
+        const id = Number(botao.dataset.excluirOs);
+        const confirmou = window.confirm(
+          "Excluir esta ordem de serviço? Essa ação não pode ser desfeita.",
+        );
+        if (!confirmou) return;
+        await window.api.os.excluir(id);
+        estado.ordens = await window.api.os.listar();
+        renderOS();
+        renderRelatorio();
+      });
+    });
 }
 
 function renderRelatorio() {
-  const secao = document.getElementById('secao-relatorio') as HTMLElement
+  const secao = document.getElementById("secao-relatorio") as HTMLElement;
   secao.innerHTML = `
     <h2 class="section-title">Faturamento</h2>
     <div class="stat-card">
@@ -596,26 +742,31 @@ function renderRelatorio() {
       <p class="valor" id="valor-faturamento">carregando...</p>
       <button class="secondary" id="botao-atualizar-relatorio">Atualizar</button>
     </div>
-  `
+  `;
 
   const atualizar = async () => {
-    const { total } = await window.api.os.relatorioFaturamento()
-    const valorEl = document.getElementById('valor-faturamento') as HTMLElement
-    valorEl.textContent = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-  }
+    const { total } = await window.api.os.relatorioFaturamento();
+    const valorEl = document.getElementById("valor-faturamento") as HTMLElement;
+    valorEl.textContent = total.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  };
 
-  document.getElementById('botao-atualizar-relatorio')?.addEventListener('click', atualizar)
-  atualizar()
+  document
+    .getElementById("botao-atualizar-relatorio")
+    ?.addEventListener("click", atualizar);
+  atualizar();
 }
 
 async function iniciar() {
-  montarCasca()
-  await carregarDados()
-  renderClientes()
-  renderEquipamentos()
-  renderOS()
-  renderRelatorio()
-  atualizarAbaAtiva()
+  montarCasca();
+  await carregarDados();
+  renderClientes();
+  renderEquipamentos();
+  renderOS();
+  renderRelatorio();
+  atualizarAbaAtiva();
 }
 
-iniciar()
+iniciar();

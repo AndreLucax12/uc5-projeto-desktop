@@ -1,6 +1,11 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import path from "path";
-import type { clientes, equipamentos, ordens_de_servico, marca_suportada } from "./types";
+import type {
+  clientes,
+  equipamentos,
+  ordens_de_servico,
+  marca_suportada,
+} from "./types";
 import { pool } from "./db";
 let mainWindow: BrowserWindow | null = null;
 
@@ -42,7 +47,6 @@ ipcMain.handle("canal-ping", async () => {
   return "pong do Processo Main!";
 });
 
-
 ipcMain.handle("clientes:listar", async () => {
   const resultado = await pool.query<clientes>(
     "SELECT id, nome, telefone FROM clientes ORDER BY id",
@@ -61,104 +65,149 @@ ipcMain.handle(
   },
 );
 
-ipcMain.handle('clientes:atualizar', async (_event, id: number, dadosCliente: Omit<clientes, 'id'>) => {
-  const resultado = await pool.query<clientes>(
-    'UPDATE clientes SET nome = $1, telefone = $2 WHERE id = $3 RETURNING id, nome, telefone',
-    [dadosCliente.nome, dadosCliente.telefone, id],
-  )
-  if (resultado.rowCount === 0) throw new Error('Cliente não encontrado')
-  return resultado.rows[0]
-})
+ipcMain.handle(
+  "clientes:atualizar",
+  async (_event, id: number, dadosCliente: Omit<clientes, "id">) => {
+    const resultado = await pool.query<clientes>(
+      "UPDATE clientes SET nome = $1, telefone = $2 WHERE id = $3 RETURNING id, nome, telefone",
+      [dadosCliente.nome, dadosCliente.telefone, id],
+    );
+    if (resultado.rowCount === 0) throw new Error("Cliente não encontrado");
+    return resultado.rows[0];
+  },
+);
 
-ipcMain.handle('clientes:excluir', async (_event, id: number) => {
-  const resultado = await pool.query('DELETE FROM clientes WHERE id = $1', [id])
-  if (resultado.rowCount === 0) throw new Error('Cliente não encontrado')
-  return { sucesso: true }
-})
+ipcMain.handle("clientes:excluir", async (_event, id: number) => {
+  const resultado = await pool.query("DELETE FROM clientes WHERE id = $1", [
+    id,
+  ]);
+  if (resultado.rowCount === 0) throw new Error("Cliente não encontrado");
+  return { sucesso: true };
+});
 
-ipcMain.handle('equipamentos:listar', async () => {
-  const resultado = await pool.query<equipamentos>('SELECT id, marca, modelo, id_cliente FROM equipamentos ORDER BY id')
-  return resultado.rows
-})
-
-ipcMain.handle('equipamentos:listar-por-cliente', async (_event, idCliente: number) => {
+ipcMain.handle("equipamentos:listar", async () => {
   const resultado = await pool.query<equipamentos>(
-    'SELECT id, marca, modelo, id_cliente FROM equipamentos WHERE id_cliente = $1 ORDER BY id',
-    [idCliente],
-  )
-  return resultado.rows
-})
+    "SELECT id, marca, modelo, id_cliente FROM equipamentos ORDER BY id",
+  );
+  return resultado.rows;
+});
 
-ipcMain.handle('equipamentos:criar', async (_event, novoEquipamento: Omit<equipamentos, 'id'>) => {
-  const resultado = await pool.query<equipamentos>(
-    'INSERT INTO equipamentos (marca, modelo, id_cliente) VALUES ($1, $2, $3) RETURNING id, marca, modelo, id_cliente',
-    [novoEquipamento.marca, novoEquipamento.modelo, novoEquipamento.id_cliente],
-  )
-  return resultado.rows[0]
-})
+ipcMain.handle(
+  "equipamentos:listar-por-cliente",
+  async (_event, idCliente: number) => {
+    const resultado = await pool.query<equipamentos>(
+      "SELECT id, marca, modelo, id_cliente FROM equipamentos WHERE id_cliente = $1 ORDER BY id",
+      [idCliente],
+    );
+    return resultado.rows;
+  },
+);
 
-ipcMain.handle('equipamentos:atualizar', async (_event, id: number, dadosEquipamento: Omit<equipamentos, 'id' | 'id_cliente'>) => {
-  const resultado = await pool.query<equipamentos>(
-    'UPDATE equipamentos SET marca = $1, modelo = $2 WHERE id = $3 RETURNING id, marca, modelo, id_cliente',
-    [dadosEquipamento.marca, dadosEquipamento.modelo, id],
-  )
-  if (resultado.rowCount === 0) throw new Error('Equipamento não encontrado')
-  return resultado.rows[0]
-})
+ipcMain.handle(
+  "equipamentos:criar",
+  async (_event, novoEquipamento: Omit<equipamentos, "id">) => {
+    const resultado = await pool.query<equipamentos>(
+      "INSERT INTO equipamentos (marca, modelo, id_cliente) VALUES ($1, $2, $3) RETURNING id, marca, modelo, id_cliente",
+      [
+        novoEquipamento.marca,
+        novoEquipamento.modelo,
+        novoEquipamento.id_cliente,
+      ],
+    );
+    return resultado.rows[0];
+  },
+);
 
-ipcMain.handle('equipamentos:excluir', async (_event, id: number) => {
-  const resultado = await pool.query('DELETE FROM equipamentos WHERE id = $1', [id])
-  if (resultado.rowCount === 0) throw new Error('Equipamento não encontrado')
-  return { sucesso: true }
-})
+ipcMain.handle(
+  "equipamentos:atualizar",
+  async (
+    _event,
+    id: number,
+    dadosEquipamento: Omit<equipamentos, "id" | "id_cliente">,
+  ) => {
+    const resultado = await pool.query<equipamentos>(
+      "UPDATE equipamentos SET marca = $1, modelo = $2 WHERE id = $3 RETURNING id, marca, modelo, id_cliente",
+      [dadosEquipamento.marca, dadosEquipamento.modelo, id],
+    );
+    if (resultado.rowCount === 0) throw new Error("Equipamento não encontrado");
+    return resultado.rows[0];
+  },
+);
+
+ipcMain.handle("equipamentos:excluir", async (_event, id: number) => {
+  const resultado = await pool.query("DELETE FROM equipamentos WHERE id = $1", [
+    id,
+  ]);
+  if (resultado.rowCount === 0) throw new Error("Equipamento não encontrado");
+  return { sucesso: true };
+});
 
 const marcasSuportadas: marca_suportada[] = [
-  { marca: 'Samsung', garantiaMeses: 12 },
-  { marca: 'Apple', garantiaMeses: 12 },
-  { marca: 'Motorola', garantiaMeses: 12 },
-  { marca: 'Xiaomi', garantiaMeses: 12 },
-  { marca: 'LG', garantiaMeses: 6 },
-]
+  { marca: "Samsung", garantiaMeses: 12 },
+  { marca: "Apple", garantiaMeses: 12 },
+  { marca: "Motorola", garantiaMeses: 12 },
+  { marca: "Xiaomi", garantiaMeses: 12 },
+  { marca: "LG", garantiaMeses: 6 },
+];
 
-ipcMain.handle('equipamentos:listar-marcas-suportadas', async () => marcasSuportadas)
+ipcMain.handle(
+  "equipamentos:listar-marcas-suportadas",
+  async () => marcasSuportadas,
+);
 
-ipcMain.handle('os:listar', async () => {
+ipcMain.handle("os:listar", async () => {
   const resultado = await pool.query<ordens_de_servico>(
-    'SELECT id, id_equipamento, descricao_defeito, status, valor_total FROM ordens_servico ORDER BY id DESC',
-  )
-  return resultado.rows
-})
+    "SELECT id, id_equipamento, descricao_defeito, status, valor_total FROM ordens_servico ORDER BY id DESC",
+  );
+  return resultado.rows;
+});
 
-ipcMain.handle('os:criar', async (_event, novaOS: Omit<ordens_de_servico, 'id' | 'status' | 'valor_total'>) => {
-  const resultado = await pool.query<ordens_de_servico>(
-    'INSERT INTO ordens_servico (id_equipamento, descricao_defeito) VALUES ($1, $2) RETURNING id, id_equipamento, descricao_defeito, status, valor_total',
-    [novaOS.id_equipamento, novaOS.descricao_defeito],
-  )
-  return resultado.rows[0]
-})
+ipcMain.handle(
+  "os:criar",
+  async (
+    _event,
+    novaOS: Omit<ordens_de_servico, "id" | "status" | "valor_total">,
+  ) => {
+    const resultado = await pool.query<ordens_de_servico>(
+      "INSERT INTO ordens_servico (id_equipamento, descricao_defeito) VALUES ($1, $2) RETURNING id, id_equipamento, descricao_defeito, status, valor_total",
+      [novaOS.id_equipamento, novaOS.descricao_defeito],
+    );
+    return resultado.rows[0];
+  },
+);
 
-ipcMain.handle('os:atualizar-status', async (_event, id: number, novoStatus: ordens_de_servico['status'], valorTotal?: number) => {
-  const resultado = await pool.query<ordens_de_servico>(
-    'UPDATE ordens_servico SET status = $1, valor_total = COALESCE($3, valor_total) WHERE id = $2 RETURNING id, id_equipamento, descricao_defeito, status, valor_total',
-    [novoStatus, id, valorTotal ?? null],
-  )
-  if (resultado.rowCount === 0) throw new Error('OS não encontrada')
-  return resultado.rows[0]
-})
+ipcMain.handle(
+  "os:atualizar-status",
+  async (
+    _event,
+    id: number,
+    novoStatus: ordens_de_servico["status"],
+    valorTotal?: number,
+  ) => {
+    const resultado = await pool.query<ordens_de_servico>(
+      "UPDATE ordens_servico SET status = $1, valor_total = COALESCE($3, valor_total) WHERE id = $2 RETURNING id, id_equipamento, descricao_defeito, status, valor_total",
+      [novoStatus, id, valorTotal ?? null],
+    );
+    if (resultado.rowCount === 0) throw new Error("OS não encontrada");
+    return resultado.rows[0];
+  },
+);
 
+ipcMain.handle("os:excluir", async (_event, id: number) => {
+  const resultado = await pool.query(
+    "DELETE FROM ordens_servico WHERE id = $1",
+    [id],
+  );
+  if (resultado.rowCount === 0) throw new Error("OS não encontrada");
+  return { sucesso: true };
+});
 
-ipcMain.handle('os:excluir', async (_event, id: number) => {
-  const resultado = await pool.query('DELETE FROM ordens_servico WHERE id = $1', [id])
-  if (resultado.rowCount === 0) throw new Error('OS não encontrada')
-  return { sucesso: true }
-})
-
-ipcMain.handle('os:relatorio-faturamento', async () => {
+ipcMain.handle("os:relatorio-faturamento", async () => {
   const resultado = await pool.query<{ total: number }>(
     "SELECT COALESCE(SUM(valor_total), 0) AS total FROM ordens_servico WHERE status = 'finalizada'",
-  )
-  return { total: resultado.rows[0].total }
-})
+  );
+  return { total: resultado.rows[0].total };
+});
 
 function criarMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
