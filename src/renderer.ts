@@ -23,6 +23,7 @@ declare global {
         listar: () => Promise<ordens_de_servico[]>
         criar: (os: Omit<ordens_de_servico, 'id' | 'status' | 'valor_total'>) => Promise<ordens_de_servico>
         atualizarStatus: (id: number, status: ordens_de_servico['status'], valorTotal?: number) => Promise<ordens_de_servico>
+        excluir: (id: number) => Promise<{ sucesso: boolean }>
         relatorioFaturamento: () => Promise<{ total: number }>
       }
     }
@@ -494,7 +495,10 @@ function renderOS() {
             <small>${os.descricao_defeito}</small>
           </div>
           <span class="${classeBadge(os.status)}">${os.status}</span>
-          ${proximo ? `<button class="secondary" data-avancar="${os.id}">Marcar como "${proximo}"</button>` : ''}
+          <div class="modal-actions">
+            ${proximo ? `<button class="secondary" data-avancar="${os.id}">Marcar como "${proximo}"</button>` : ''}
+            <button class="secondary" data-excluir-os="${os.id}">Excluir</button>
+          </div>
         </div>
       `
         })
@@ -564,6 +568,18 @@ function renderOS() {
       }
 
       await window.api.os.atualizarStatus(id, proximo, valor)
+      estado.ordens = await window.api.os.listar()
+      renderOS()
+      renderRelatorio()
+    })
+  })
+
+  secao.querySelectorAll<HTMLButtonElement>('[data-excluir-os]').forEach((botao) => {
+    botao.addEventListener('click', async () => {
+      const id = Number(botao.dataset.excluirOs)
+      const confirmou = window.confirm('Excluir esta ordem de serviço? Essa ação não pode ser desfeita.')
+      if (!confirmou) return
+      await window.api.os.excluir(id)
       estado.ordens = await window.api.os.listar()
       renderOS()
       renderRelatorio()

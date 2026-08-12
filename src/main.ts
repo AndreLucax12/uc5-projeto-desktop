@@ -147,6 +147,12 @@ ipcMain.handle('os:atualizar-status', async (_event, id: number, novoStatus: ord
 })
 
 
+ipcMain.handle('os:excluir', async (_event, id: number) => {
+  const resultado = await pool.query('DELETE FROM ordens_servico WHERE id = $1', [id])
+  if (resultado.rowCount === 0) throw new Error('OS não encontrada')
+  return { sucesso: true }
+})
+
 ipcMain.handle('os:relatorio-faturamento', async () => {
   const resultado = await pool.query<{ total: number }>(
     "SELECT COALESCE(SUM(valor_total), 0) AS total FROM ordens_servico WHERE status = 'finalizada'",

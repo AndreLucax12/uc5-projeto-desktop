@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('api', {
       valorTotal?: number,
     ): Promise<ordens_de_servico> =>
       ipcRenderer.invoke('os:atualizar-status', id, status, valorTotal),
+    excluir: (id: number): Promise<{ sucesso: boolean }> =>
+      ipcRenderer.invoke('os:excluir', id),
     relatorioFaturamento: (): Promise<{ total: number }> =>
       ipcRenderer.invoke('os:relatorio-faturamento'),
   },
