@@ -157,7 +157,7 @@ ipcMain.handle(
 
 ipcMain.handle("os:listar", async () => {
   const resultado = await pool.query<ordens_de_servico>(
-    "SELECT id, id_equipamento, descricao_defeito, status, valor_total FROM ordens_servico ORDER BY id DESC",
+    "SELECT id, id_equipamento, descricao_defeito, status, valor_total, data_abertura FROM ordens_servico ORDER BY id DESC",
   );
   return resultado.rows;
 });
@@ -166,10 +166,10 @@ ipcMain.handle(
   "os:criar",
   async (
     _event,
-    novaOS: Omit<ordens_de_servico, "id" | "status" | "valor_total">,
+    novaOS: Omit<ordens_de_servico, "id" | "status" | "valor_total" | "data_abertura">,
   ) => {
     const resultado = await pool.query<ordens_de_servico>(
-      "INSERT INTO ordens_servico (id_equipamento, descricao_defeito) VALUES ($1, $2) RETURNING id, id_equipamento, descricao_defeito, status, valor_total",
+      "INSERT INTO ordens_servico (id_equipamento, descricao_defeito) VALUES ($1, $2) RETURNING id, id_equipamento, descricao_defeito, status, valor_total, data_abertura",
       [novaOS.id_equipamento, novaOS.descricao_defeito],
     );
     return resultado.rows[0];
@@ -185,7 +185,7 @@ ipcMain.handle(
     valorTotal?: number,
   ) => {
     const resultado = await pool.query<ordens_de_servico>(
-      "UPDATE ordens_servico SET status = $1, valor_total = COALESCE($3, valor_total) WHERE id = $2 RETURNING id, id_equipamento, descricao_defeito, status, valor_total",
+      "UPDATE ordens_servico SET status = $1, valor_total = COALESCE($3, valor_total) WHERE id = $2 RETURNING id, id_equipamento, descricao_defeito, status, valor_total, data_abertura",
       [novoStatus, id, valorTotal ?? null],
     );
     if (resultado.rowCount === 0) throw new Error("OS não encontrada");
@@ -202,12 +202,28 @@ ipcMain.handle("os:excluir", async (_event, id: number) => {
   return { sucesso: true };
 });
 
-ipcMain.handle("os:relatorio-faturamento", async () => {
-  const resultado = await pool.query<{ total: number }>(
-    "SELECT COALESCE(SUM(valor_total), 0) AS total FROM ordens_servico WHERE status = 'finalizada'",
-  );
-  return { total: resultado.rows[0].total };
-});
+ipcMain.handle(
+  "os:relatorio-faturamento",
+  async (_event, dataInicio?: string, dataFim?: string) => {
+    const condicoes = ["status = 'finalizada'"];
+    const parametros: string[] = [];
+
+    if (dataInicio) {
+      parametros.push(dataInicio);
+      condicoes.push(`data_abertura >= $${parametros.length}::date`);
+    }
+    if (dataFim) {
+      parametros.push(dataFim);
+      condicoes.push(`data_abertura < $${parametros.length}::date + interval '1 day'`);
+    }
+
+    const resultado = await pool.query<{ total: number }>(
+      `SELECT COALESCE(SUM(valor_total), 0) AS total FROM ordens_servico WHERE ${condicoes.join(" AND ")}`,
+      parametros,
+    );
+    return { total: resultado.rows[0].total };
+  },
+);
 
 function criarMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [

@@ -33,7 +33,7 @@ declare global {
       os: {
         listar: () => Promise<ordens_de_servico[]>;
         criar: (
-          os: Omit<ordens_de_servico, "id" | "status" | "valor_total">,
+          os: Omit<ordens_de_servico, "id" | "status" | "valor_total" | "data_abertura">,
         ) => Promise<ordens_de_servico>;
         atualizarStatus: (
           id: number,
@@ -41,7 +41,10 @@ declare global {
           valorTotal?: number,
         ) => Promise<ordens_de_servico>;
         excluir: (id: number) => Promise<{ sucesso: boolean }>;
-        relatorioFaturamento: () => Promise<{ total: number }>;
+        relatorioFaturamento: (
+          dataInicio?: string,
+          dataFim?: string,
+        ) => Promise<{ total: number }>;
       };
     };
   }
@@ -61,6 +64,8 @@ const estado: {
   equipamentoEditando: number | null;
   filtroClienteOS: number | null;
   filtroStatusOS: ordens_de_servico["status"] | "todas";
+  filtroRelatorioInicio: string;
+  filtroRelatorioFim: string;
 } = {
   aba: "clientes",
   clientes: [],
@@ -73,6 +78,8 @@ const estado: {
   equipamentoEditando: null,
   filtroClienteOS: null,
   filtroStatusOS: "todas",
+  filtroRelatorioInicio: "",
+  filtroRelatorioFim: "",
 };
 
 const proximoStatus: Record<
@@ -737,6 +744,17 @@ function renderRelatorio() {
   const secao = document.getElementById("secao-relatorio") as HTMLElement;
   secao.innerHTML = `
     <h2 class="section-title">Faturamento</h2>
+    <div class="card">
+      <div class="form-grid">
+        <label>De
+          <input type="date" id="filtro-relatorio-inicio" value="${estado.filtroRelatorioInicio}" />
+        </label>
+        <label>Até
+          <input type="date" id="filtro-relatorio-fim" value="${estado.filtroRelatorioFim}" />
+        </label>
+      </div>
+      <button type="button" class="secondary" id="botao-limpar-filtro-relatorio">Limpar período</button>
+    </div>
     <div class="stat-card">
       <p class="label">Total faturado (OS finalizadas)</p>
       <p class="valor" id="valor-faturamento">carregando...</p>
@@ -745,13 +763,40 @@ function renderRelatorio() {
   `;
 
   const atualizar = async () => {
-    const { total } = await window.api.os.relatorioFaturamento();
+    const { total } = await window.api.os.relatorioFaturamento(
+      estado.filtroRelatorioInicio || undefined,
+      estado.filtroRelatorioFim || undefined,
+    );
     const valorEl = document.getElementById("valor-faturamento") as HTMLElement;
     valorEl.textContent = total.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
     });
   };
+
+  const inputInicio = document.getElementById(
+    "filtro-relatorio-inicio",
+  ) as HTMLInputElement;
+  inputInicio.addEventListener("change", () => {
+    estado.filtroRelatorioInicio = inputInicio.value;
+    atualizar();
+  });
+
+  const inputFim = document.getElementById(
+    "filtro-relatorio-fim",
+  ) as HTMLInputElement;
+  inputFim.addEventListener("change", () => {
+    estado.filtroRelatorioFim = inputFim.value;
+    atualizar();
+  });
+
+  document
+    .getElementById("botao-limpar-filtro-relatorio")
+    ?.addEventListener("click", () => {
+      estado.filtroRelatorioInicio = "";
+      estado.filtroRelatorioFim = "";
+      renderRelatorio();
+    });
 
   document
     .getElementById("botao-atualizar-relatorio")

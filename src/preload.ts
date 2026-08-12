@@ -37,7 +37,7 @@ contextBridge.exposeInMainWorld("api", {
   os: {
     listar: (): Promise<ordens_de_servico[]> => ipcRenderer.invoke("os:listar"),
     criar: (
-      os: Omit<ordens_de_servico, "id" | "status" | "valor_total">,
+      os: Omit<ordens_de_servico, "id" | "status" | "valor_total" | "data_abertura">,
     ): Promise<ordens_de_servico> => ipcRenderer.invoke("os:criar", os),
     atualizarStatus: (
       id: number,
@@ -47,7 +47,10 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke("os:atualizar-status", id, status, valorTotal),
     excluir: (id: number): Promise<{ sucesso: boolean }> =>
       ipcRenderer.invoke("os:excluir", id),
-    relatorioFaturamento: (): Promise<{ total: number }> =>
-      ipcRenderer.invoke("os:relatorio-faturamento"),
+    relatorioFaturamento: (
+      dataInicio?: string,
+      dataFim?: string,
+    ): Promise<{ total: number }> =>
+      ipcRenderer.invoke("os:relatorio-faturamento", dataInicio, dataFim),
   },
 });

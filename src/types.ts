@@ -17,7 +17,8 @@ export interface ordens_de_servico {
     descricao_defeito: string;
     status: 'aberta' | 'em andamento' | 'finalizada';
     valor_total: number;
-}       
+    data_abertura: string;
+}
 
 export interface marca_suportada{
     marca: string;
