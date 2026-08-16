@@ -325,3 +325,57 @@ button.secondary:hover {
   gap: 8px;
   margin-top: 12px;
 }
+
+/* Exercício: busca de OS finalizadas (aba Relatório) */
+#secao-relatorio-exercicio {
+  max-width: 960px;
+  margin: 0 auto 60px;
+  padding: 0 20px;
+}
+
+#secao-relatorio-exercicio h2 {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+#form-buscar-os-finalizadas {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#form-buscar-os-finalizadas label,
+#secao-relatorio-exercicio > label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+#campo-filtro-os-finalizadas {
+  margin-bottom: 12px;
+}
+
+#lista-os-finalizadas {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#lista-os-finalizadas li {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+#lista-os-finalizadas mark {
+  background: var(--accent);
+  color: #fff;
+  padding: 0 2px;
+  border-radius: 3px;
+}

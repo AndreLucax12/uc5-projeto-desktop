@@ -13,6 +13,23 @@
   </head>
   <body>
     <div id="app"></div>
+
+    <section id="secao-relatorio-exercicio" hidden aria-label="Busca de ordens de serviço finalizadas">
+      <h2>OS finalizadas (busca)</h2>
+
+      <form id="form-buscar-os-finalizadas">
+        <label for="campo-buscar-os-finalizadas">Buscar por cliente</label>
+        <input type="text" id="campo-buscar-os-finalizadas" name="cliente" placeholder="ex: Maria" />
+        <button type="submit">Buscar</button>
+      </form>
+      <p id="erro-buscar-os-finalizadas" class="modal-erro"></p>
+
+      <label for="campo-filtro-os-finalizadas">Filtrar na lista já carregada</label>
+      <input type="text" id="campo-filtro-os-finalizadas" placeholder="digite para filtrar sem buscar de novo" />
+
+      <ul id="lista-os-finalizadas"></ul>
+    </section>
+
     <script type="module" src="/src/renderer.ts"></script>
   </body>
 </html>

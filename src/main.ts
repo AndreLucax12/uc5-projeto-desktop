@@ -155,7 +155,10 @@ ipcMain.handle(
   async () => marcasSuportadas,
 );
 
-ipcMain.handle("os:listar", async () => {
+ipcMain.handle("os:listar", async (_event, termo?: string) => {
+  if (termo !== undefined && /\d/.test(termo.trim())) {
+    throw new Error("Termo de busca inválido: não use números.");
+  }
   const resultado = await pool.query<ordens_de_servico>(
     "SELECT id, id_equipamento, descricao_defeito, status, valor_total, data_abertura FROM ordens_servico ORDER BY id DESC",
   );

@@ -31,7 +31,7 @@ declare global {
       };
 
       os: {
-        listar: () => Promise<ordens_de_servico[]>;
+        listar: (termo?: string) => Promise<ordens_de_servico[]>;
         criar: (
           os: Omit<ordens_de_servico, "id" | "status" | "valor_total" | "data_abertura">,
         ) => Promise<ordens_de_servico>;
@@ -197,6 +197,13 @@ function atualizarAbaAtiva() {
   document.querySelectorAll<HTMLElement>(".section").forEach((secao) => {
     secao.classList.toggle("active", secao.id === `secao-${estado.aba}`);
   });
+
+  const secaoExercicioRelatorio = document.getElementById(
+    "secao-relatorio-exercicio",
+  );
+  if (secaoExercicioRelatorio) {
+    secaoExercicioRelatorio.hidden = estado.aba !== "relatorio";
+  }
 }
 
 async function carregarDados() {
@@ -804,6 +811,128 @@ function renderRelatorio() {
   atualizar();
 }
 
+function normalizarTexto(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+    .toLowerCase();
+}
+
+function dobrarCaractere(caractere: string): string {
+  return caractere
+    .normalize("NFD")
+    .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+    .toLowerCase();
+}
+
+function textoDobrado(texto: string): string {
+  return Array.from(texto).map(dobrarCaractere).join("");
+}
+
+function montarTextoComDestaque(elemento: HTMLElement, texto: string, termo: string) {
+  elemento.textContent = "";
+  const indice = termo ? textoDobrado(texto).indexOf(textoDobrado(termo)) : -1;
+
+  if (indice === -1) {
+    elemento.textContent = texto;
+    return;
+  }
+
+  const antes = texto.slice(0, indice);
+  const trecho = texto.slice(indice, indice + termo.length);
+  const depois = texto.slice(indice + termo.length);
+
+  if (antes) elemento.appendChild(document.createTextNode(antes));
+  const marca = document.createElement("mark");
+  marca.textContent = trecho;
+  elemento.appendChild(marca);
+  if (depois) elemento.appendChild(document.createTextNode(depois));
+}
+
+function renderizarListaOSFinalizadas(ordens: ordens_de_servico[], termoDestaque: string) {
+  const lista = document.getElementById("lista-os-finalizadas") as HTMLUListElement;
+  lista.textContent = "";
+
+  ordens.forEach((os) => {
+    const equipamento = estado.equipamentos.find((e) => e.id === os.id_equipamento);
+    const nomeDoCliente = equipamento
+      ? nomeCliente(equipamento.id_cliente)
+      : "Cliente desconhecido";
+
+    const item = document.createElement("li");
+
+    const cliente = document.createElement("strong");
+    montarTextoComDestaque(cliente, nomeDoCliente, termoDestaque);
+
+    const detalhe = document.createElement("span");
+    detalhe.textContent = ` — ${os.descricao_defeito} — ${os.valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`;
+
+    item.appendChild(cliente);
+    item.appendChild(detalhe);
+    lista.appendChild(item);
+  });
+}
+
+async function buscarOSFinalizadas(termo?: string) {
+  const erro = document.getElementById("erro-buscar-os-finalizadas") as HTMLParagraphElement;
+  erro.textContent = "";
+
+  try {
+    const todasAsOrdens = await window.api.os.listar(termo);
+    const finalizadas = todasAsOrdens.filter((os) => os.status === "finalizada");
+
+    if (finalizadas.length === 0) {
+      (document.getElementById("lista-os-finalizadas") as HTMLUListElement).textContent = "";
+      erro.textContent = "Nenhuma OS finalizada registrada ainda.";
+      return;
+    }
+
+    const termoBusca = (termo ?? "").trim();
+    const termoNormalizado = normalizarTexto(termoBusca);
+
+    const existeCorrespondencia =
+      !termoNormalizado ||
+      finalizadas.some((os) => {
+        const equipamento = estado.equipamentos.find((e) => e.id === os.id_equipamento);
+        const nomeDoCliente = equipamento ? nomeCliente(equipamento.id_cliente) : "";
+        return normalizarTexto(nomeDoCliente).includes(termoNormalizado);
+      });
+
+    renderizarListaOSFinalizadas(finalizadas, termoBusca);
+
+    if (termoNormalizado && !existeCorrespondencia) {
+      erro.textContent =
+        "Nenhuma correspondência para esse termo — mostrando todas as OS finalizadas.";
+    }
+  } catch {
+    (document.getElementById("lista-os-finalizadas") as HTMLUListElement).textContent = "";
+    erro.textContent = "Termo de busca inválido: não use números.";
+  }
+}
+
+function iniciarExercicioOSFinalizadas() {
+  const form = document.getElementById("form-buscar-os-finalizadas") as HTMLFormElement;
+  const campoBusca = document.getElementById("campo-buscar-os-finalizadas") as HTMLInputElement;
+  const campoFiltro = document.getElementById("campo-filtro-os-finalizadas") as HTMLInputElement;
+
+  form.addEventListener("submit", (evento) => {
+    evento.preventDefault();
+    const termo = campoBusca.value.trim();
+    buscarOSFinalizadas(termo || undefined);
+  });
+
+  campoFiltro.addEventListener("input", () => {
+    const termo = normalizarTexto(campoFiltro.value.trim());
+    const itens = document.querySelectorAll<HTMLLIElement>("#lista-os-finalizadas li");
+    itens.forEach((item) => {
+      const visivel = normalizarTexto(item.textContent ?? "").includes(termo);
+      item.hidden = !visivel;
+    });
+  });
+
+  buscarOSFinalizadas();
+}
+
 async function iniciar() {
   montarCasca();
   await carregarDados();
@@ -812,6 +941,7 @@ async function iniciar() {
   renderOS();
   renderRelatorio();
   atualizarAbaAtiva();
+  iniciarExercicioOSFinalizadas();
 }
 
 iniciar();

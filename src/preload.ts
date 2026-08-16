@@ -35,7 +35,8 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke("equipamentos:listar-marcas-suportadas"),
   },
   os: {
-    listar: (): Promise<ordens_de_servico[]> => ipcRenderer.invoke("os:listar"),
+    listar: (termo?: string): Promise<ordens_de_servico[]> =>
+      ipcRenderer.invoke("os:listar", termo),
     criar: (
       os: Omit<ordens_de_servico, "id" | "status" | "valor_total" | "data_abertura">,
     ): Promise<ordens_de_servico> => ipcRenderer.invoke("os:criar", os),
