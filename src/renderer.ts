@@ -904,9 +904,13 @@ async function buscarOSFinalizadas(termo?: string) {
       erro.textContent =
         "Nenhuma correspondência para esse termo — mostrando todas as OS finalizadas.";
     }
-  } catch {
+  }  catch (falha) {
     (document.getElementById("lista-os-finalizadas") as HTMLUListElement).textContent = "";
-    erro.textContent = "Termo de busca inválido: não use números.";
+    if (falha instanceof Error && falha.message.includes("não use números")) {
+      erro.textContent = "Termo de busca inválido: não use números.";
+    } else {
+      erro.textContent = "Não foi possível buscar agora: sem conexão com o banco de dados.";
+    }
   }
 }
 
@@ -935,7 +939,15 @@ function iniciarExercicioOSFinalizadas() {
 
 async function iniciar() {
   montarCasca();
+  try {
   await carregarDados();
+  } catch (error) {
+    const appElement = document.getElementById("app") as HTMLDivElement;
+    const aviso = document.createElement("p");
+    aviso.className = "modal-erro";
+    aviso.textContent = "Não foi possível carregar os dados do banco. Verifique a conexão e tente novamente.";
+    appElement.prepend(aviso);
+  }
   renderClientes();
   renderEquipamentos();
   renderOS();
@@ -944,4 +956,4 @@ async function iniciar() {
   iniciarExercicioOSFinalizadas();
 }
 
-iniciar();
+iniciar()
