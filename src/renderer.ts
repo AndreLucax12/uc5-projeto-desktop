@@ -20,14 +20,14 @@ declare global {
         excluir: (id: number) => Promise<RespostaIPC<void>>;
       };
       equipamentos: {
-        listar: () => Promise<equipamentos[]>;
-        listarPorCliente: (idCliente: number) => Promise<equipamentos[]>;
-        criar: (equipamento: Omit<equipamentos, "id">) => Promise<equipamentos>;
+        listar: () => Promise<RespostaIPC<equipamentos[]>>;
+        listarPorCliente: (idCliente: number) => Promise<RespostaIPC<equipamentos[]>>;
+        criar: (equipamento: Omit<equipamentos, "id">) => Promise<RespostaIPC<equipamentos>>;
         atualizar: (
           id: number,
           equipamento: Omit<equipamentos, "id" | "id_cliente">,
-        ) => Promise<equipamentos>;
-        excluir: (id: number) => Promise<{ sucesso: boolean }>;
+        ) => Promise<RespostaIPC<equipamentos>>;
+        excluir: (id: number) => Promise<RespostaIPC<void>>;
         listarMarcasSuportadas: () => Promise<marca_suportada[]>;
       };
 
@@ -68,6 +68,7 @@ const estado: {
   filtroRelatorioInicio: string;
   filtroRelatorioFim: string;
   erroClientes: string | null;
+  erroEquipamentos: string | null;
 } = {
   aba: "clientes",
   clientes: [],
@@ -83,6 +84,7 @@ const estado: {
   filtroRelatorioInicio: "",
   filtroRelatorioFim: "",
   erroClientes: null,
+  erroEquipamentos: null,
 };
 
 const proximoStatus: Record<
@@ -184,27 +186,6 @@ function confirmarAcao(mensagem: string): Promise<boolean> {
   });
 }
 
-function mostrarAlerta(mensagem: string): Promise<void> {
-  return new Promise((resolve) => {
-    const overlay = document.createElement("div");
-    overlay.className = "modal-overlay";
-    overlay.innerHTML = `
-      <div class="modal-card">
-        <p>${mensagem}</p>
-        <div class="modal-actions">
-          <button type="button" id="modal-alerta-ok">OK</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    overlay.querySelector("#modal-alerta-ok")!.addEventListener("click", () => {
-      overlay.remove();
-      resolve();
-    });
-  });
-}
-
 function montarCasca() {
   const appElement = document.getElementById("app") as HTMLDivElement;
   appElement.innerHTML = `
@@ -275,7 +256,14 @@ async function carregarDados() {
     estado.erroClientes =
       clientesResp.erro ?? "Não foi possível carregar os clientes.";
   }
-  estado.equipamentos = equipamentosResp;
+  if (equipamentosResp.sucesso) {
+    estado.equipamentos = equipamentosResp.dados ?? [];
+    estado.erroEquipamentos = null;
+  } else {
+    estado.equipamentos = [];
+    estado.erroEquipamentos =
+      equipamentosResp.erro ?? "Não foi possível carregar os equipamentos.";
+  }
   estado.ordens = ordensResp;
   estado.marcasSuportadas = marcasResp;
 }
@@ -463,6 +451,36 @@ function renderClientes() {
     });
 }
 
+let temporizadorErroEquipamentos: ReturnType<typeof setTimeout> | null = null;
+
+function mostrarErroEquipamentos(mensagem: string) {
+  estado.erroEquipamentos = mensagem;
+  renderEquipamentos();
+
+  if (temporizadorErroEquipamentos) clearTimeout(temporizadorErroEquipamentos);
+  temporizadorErroEquipamentos = setTimeout(() => {
+    temporizadorErroEquipamentos = null;
+    estado.erroEquipamentos = null;
+    renderEquipamentos();
+  }, 5000);
+}
+
+async function recarregarEquipamentos() {
+  const resposta = await window.api.equipamentos.listar();
+  if (resposta.sucesso) {
+    estado.equipamentos = resposta.dados ?? [];
+    if (temporizadorErroEquipamentos) {
+      clearTimeout(temporizadorErroEquipamentos);
+      temporizadorErroEquipamentos = null;
+    }
+    estado.erroEquipamentos = null;
+  } else {
+    mostrarErroEquipamentos(
+      resposta.erro ?? "Não foi possível recarregar os equipamentos.",
+    );
+  }
+}
+
 function renderEquipamentos() {
   const secao = document.getElementById("secao-equipamentos") as HTMLElement;
   const opcoesClientes = estado.clientes
@@ -523,8 +541,9 @@ function renderEquipamentos() {
 
   secao.innerHTML = `
     <h2 class="section-title">Equipamentos</h2>
+    <p id="erro-equipamentos" class="modal-erro">${estado.erroEquipamentos ?? ""}</p>
     <div class="card">
-    
+
       <label>Cliente
         <select id="select-cliente-equipamentos">
           <option value="">Selecione um cliente</option>
@@ -587,12 +606,16 @@ function renderEquipamentos() {
     const marca = String(dados.get("marca") ?? "").trim();
     const modelo = String(dados.get("modelo") ?? "").trim();
     if (!marca || !modelo) return;
-    await window.api.equipamentos.criar({
+    const resposta = await window.api.equipamentos.criar({
       marca,
       modelo,
       id_cliente: estado.clienteFiltroEquipamentos,
     });
-    estado.equipamentos = await window.api.equipamentos.listar();
+    if (!resposta.sucesso) {
+      mostrarErroEquipamentos(resposta.erro ?? "Não foi possível cadastrar o equipamento.");
+      return;
+    }
+    await recarregarEquipamentos();
     renderEquipamentos();
     renderOS();
   });
@@ -625,9 +648,13 @@ function renderEquipamentos() {
         const marca = String(dados.get("marca") ?? "").trim();
         const modelo = String(dados.get("modelo") ?? "").trim();
         if (!marca || !modelo) return;
-        await window.api.equipamentos.atualizar(id, { marca, modelo });
+        const resposta = await window.api.equipamentos.atualizar(id, { marca, modelo });
+        if (!resposta.sucesso) {
+          mostrarErroEquipamentos(resposta.erro ?? "Não foi possível salvar o equipamento.");
+          return;
+        }
         estado.equipamentoEditando = null;
-        estado.equipamentos = await window.api.equipamentos.listar();
+        await recarregarEquipamentos();
         renderEquipamentos();
         renderOS();
       });
@@ -643,15 +670,13 @@ function renderEquipamentos() {
           `Excluir o equipamento "${equipamento?.marca ?? ""} ${equipamento?.modelo ?? ""}"? Essa ação não pode ser desfeita.`,
         );
         if (!confirmou) return;
-        try {
-          await window.api.equipamentos.excluir(id);
-          estado.equipamentos = await window.api.equipamentos.listar();
-          renderEquipamentos();
-        } catch {
-          await mostrarAlerta(
-            "Não foi possível excluir: este equipamento ainda tem ordens de serviço registradas.",
-          );
+        const resposta = await window.api.equipamentos.excluir(id);
+        if (!resposta.sucesso) {
+          mostrarErroEquipamentos(resposta.erro ?? "Não foi possível excluir o equipamento.");
+          return;
         }
+        await recarregarEquipamentos();
+        renderEquipamentos();
       });
     });
 }

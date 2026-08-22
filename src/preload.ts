@@ -23,18 +23,18 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke("clientes:excluir", id),
   },
   equipamentos: {
-    listar: (): Promise<equipamentos[]> =>
+    listar: (): Promise<RespostaIPC<equipamentos[]>> =>
       ipcRenderer.invoke("equipamentos:listar"),
-    listarPorCliente: (idCliente: number): Promise<equipamentos[]> =>
+    listarPorCliente: (idCliente: number): Promise<RespostaIPC<equipamentos[]>> =>
       ipcRenderer.invoke("equipamentos:listar-por-cliente", idCliente),
-    criar: (equipamento: Omit<equipamentos, "id">): Promise<equipamentos> =>
+    criar: (equipamento: Omit<equipamentos, "id">): Promise<RespostaIPC<equipamentos>> =>
       ipcRenderer.invoke("equipamentos:criar", equipamento),
     atualizar: (
       id: number,
       equipamento: Omit<equipamentos, "id" | "id_cliente">,
-    ): Promise<equipamentos> =>
+    ): Promise<RespostaIPC<equipamentos>> =>
       ipcRenderer.invoke("equipamentos:atualizar", id, equipamento),
-    excluir: (id: number): Promise<{ sucesso: boolean }> =>
+    excluir: (id: number): Promise<RespostaIPC<void>> =>
       ipcRenderer.invoke("equipamentos:excluir", id),
     listarMarcasSuportadas: (): Promise<marca_suportada[]> =>
       ipcRenderer.invoke("equipamentos:listar-marcas-suportadas"),

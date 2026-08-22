@@ -124,37 +124,41 @@ ipcMain.handle("clientes:excluir", async (_event, id: number) =>
   }),
 );
 
-ipcMain.handle("equipamentos:listar", async () => {
-  const resultado = await pool.query<equipamentos>(
-    "SELECT id, marca, modelo, id_cliente FROM equipamentos ORDER BY id",
-  );
-  return resultado.rows;
-});
+ipcMain.handle("equipamentos:listar", async () =>
+  comTratamentoDeErro(async () => {
+    const resultado = await pool.query<equipamentos>(
+      "SELECT id, marca, modelo, id_cliente FROM equipamentos ORDER BY id",
+    );
+    return resultado.rows;
+  }),
+);
 
 ipcMain.handle(
   "equipamentos:listar-por-cliente",
-  async (_event, idCliente: number) => {
-    const resultado = await pool.query<equipamentos>(
-      "SELECT id, marca, modelo, id_cliente FROM equipamentos WHERE id_cliente = $1 ORDER BY id",
-      [idCliente],
-    );
-    return resultado.rows;
-  },
+  async (_event, idCliente: number) =>
+    comTratamentoDeErro(async () => {
+      const resultado = await pool.query<equipamentos>(
+        "SELECT id, marca, modelo, id_cliente FROM equipamentos WHERE id_cliente = $1 ORDER BY id",
+        [idCliente],
+      );
+      return resultado.rows;
+    }),
 );
 
 ipcMain.handle(
   "equipamentos:criar",
-  async (_event, novoEquipamento: Omit<equipamentos, "id">) => {
-    const resultado = await pool.query<equipamentos>(
-      "INSERT INTO equipamentos (marca, modelo, id_cliente) VALUES ($1, $2, $3) RETURNING id, marca, modelo, id_cliente",
-      [
-        novoEquipamento.marca,
-        novoEquipamento.modelo,
-        novoEquipamento.id_cliente,
-      ],
-    );
-    return resultado.rows[0];
-  },
+  async (_event, novoEquipamento: Omit<equipamentos, "id">) =>
+    comTratamentoDeErro(async () => {
+      const resultado = await pool.query<equipamentos>(
+        "INSERT INTO equipamentos (marca, modelo, id_cliente) VALUES ($1, $2, $3) RETURNING id, marca, modelo, id_cliente",
+        [
+          novoEquipamento.marca,
+          novoEquipamento.modelo,
+          novoEquipamento.id_cliente,
+        ],
+      );
+      return resultado.rows[0];
+    }),
 );
 
 ipcMain.handle(
@@ -163,23 +167,28 @@ ipcMain.handle(
     _event,
     id: number,
     dadosEquipamento: Omit<equipamentos, "id" | "id_cliente">,
-  ) => {
-    const resultado = await pool.query<equipamentos>(
-      "UPDATE equipamentos SET marca = $1, modelo = $2 WHERE id = $3 RETURNING id, marca, modelo, id_cliente",
-      [dadosEquipamento.marca, dadosEquipamento.modelo, id],
-    );
-    if (resultado.rowCount === 0) throw new Error("Equipamento não encontrado");
-    return resultado.rows[0];
-  },
+  ) =>
+    comTratamentoDeErro(async () => {
+      const resultado = await pool.query<equipamentos>(
+        "UPDATE equipamentos SET marca = $1, modelo = $2 WHERE id = $3 RETURNING id, marca, modelo, id_cliente",
+        [dadosEquipamento.marca, dadosEquipamento.modelo, id],
+      );
+      if (resultado.rowCount === 0)
+        throw new ErroDeValidacao("Equipamento não encontrado");
+      return resultado.rows[0];
+    }),
 );
 
-ipcMain.handle("equipamentos:excluir", async (_event, id: number) => {
-  const resultado = await pool.query("DELETE FROM equipamentos WHERE id = $1", [
-    id,
-  ]);
-  if (resultado.rowCount === 0) throw new Error("Equipamento não encontrado");
-  return { sucesso: true };
-});
+ipcMain.handle("equipamentos:excluir", async (_event, id: number) =>
+  comTratamentoDeErro(async () => {
+    const resultado = await pool.query(
+      "DELETE FROM equipamentos WHERE id = $1",
+      [id],
+    );
+    if (resultado.rowCount === 0)
+      throw new ErroDeValidacao("Equipamento não encontrado");
+  }),
+);
 
 const marcasSuportadas: marca_suportada[] = [
   { marca: "Samsung", garantiaMeses: 12 },
