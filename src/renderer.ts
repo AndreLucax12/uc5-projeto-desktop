@@ -4,19 +4,20 @@ import type {
   equipamentos,
   ordens_de_servico,
   marca_suportada,
+  RespostaIPC,
 } from "./types";
 declare global {
   interface Window {
     api: {
       ping: () => Promise<string>;
       clientes: {
-        listar: () => Promise<clientes[]>;
-        criar: (cliente: Omit<clientes, "id">) => Promise<clientes>;
+        listar: () => Promise<RespostaIPC<clientes[]>>;
+        criar: (cliente: Omit<clientes, "id">) => Promise<RespostaIPC<clientes>>;
         atualizar: (
           id: number,
           cliente: Omit<clientes, "id">,
-        ) => Promise<clientes>;
-        excluir: (id: number) => Promise<{ sucesso: boolean }>;
+        ) => Promise<RespostaIPC<clientes>>;
+        excluir: (id: number) => Promise<RespostaIPC<void>>;
       };
       equipamentos: {
         listar: () => Promise<equipamentos[]>;
@@ -66,6 +67,7 @@ const estado: {
   filtroStatusOS: ordens_de_servico["status"] | "todas";
   filtroRelatorioInicio: string;
   filtroRelatorioFim: string;
+  erroClientes: string | null;
 } = {
   aba: "clientes",
   clientes: [],
@@ -80,6 +82,7 @@ const estado: {
   filtroStatusOS: "todas",
   filtroRelatorioInicio: "",
   filtroRelatorioFim: "",
+  erroClientes: null,
 };
 
 const proximoStatus: Record<
@@ -152,6 +155,56 @@ function pedirValor(mensagem: string): Promise<number | null> {
   });
 }
 
+function confirmarAcao(mensagem: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `
+      <div class="modal-card">
+        <p>${mensagem}</p>
+        <div class="modal-actions">
+          <button type="button" class="secondary" id="modal-confirmar-cancelar">Cancelar</button>
+          <button type="button" id="modal-confirmar-ok">Confirmar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const fechar = (resultado: boolean) => {
+      overlay.remove();
+      resolve(resultado);
+    };
+
+    overlay
+      .querySelector("#modal-confirmar-cancelar")!
+      .addEventListener("click", () => fechar(false));
+    overlay
+      .querySelector("#modal-confirmar-ok")!
+      .addEventListener("click", () => fechar(true));
+  });
+}
+
+function mostrarAlerta(mensagem: string): Promise<void> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `
+      <div class="modal-card">
+        <p>${mensagem}</p>
+        <div class="modal-actions">
+          <button type="button" id="modal-alerta-ok">OK</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector("#modal-alerta-ok")!.addEventListener("click", () => {
+      overlay.remove();
+      resolve();
+    });
+  });
+}
+
 function montarCasca() {
   const appElement = document.getElementById("app") as HTMLDivElement;
   appElement.innerHTML = `
@@ -214,10 +267,51 @@ async function carregarDados() {
       window.api.os.listar(),
       window.api.equipamentos.listarMarcasSuportadas(),
     ]);
-  estado.clientes = clientesResp;
+  if (clientesResp.sucesso) {
+    estado.clientes = clientesResp.dados ?? [];
+    estado.erroClientes = null;
+  } else {
+    estado.clientes = [];
+    estado.erroClientes =
+      clientesResp.erro ?? "Não foi possível carregar os clientes.";
+  }
   estado.equipamentos = equipamentosResp;
   estado.ordens = ordensResp;
   estado.marcasSuportadas = marcasResp;
+}
+
+let temporizadorErroClientes: ReturnType<typeof setTimeout> | null = null;
+
+function limparErroClientes() {
+  if (temporizadorErroClientes) {
+    clearTimeout(temporizadorErroClientes);
+    temporizadorErroClientes = null;
+  }
+  estado.erroClientes = null;
+}
+
+function mostrarErroClientes(mensagem: string) {
+  estado.erroClientes = mensagem;
+  renderClientes();
+
+  if (temporizadorErroClientes) clearTimeout(temporizadorErroClientes);
+  temporizadorErroClientes = setTimeout(() => {
+    temporizadorErroClientes = null;
+    estado.erroClientes = null;
+    renderClientes();
+  }, 5000);
+}
+
+async function recarregarClientes() {
+  const resposta = await window.api.clientes.listar();
+  if (resposta.sucesso) {
+    estado.clientes = resposta.dados ?? [];
+    limparErroClientes();
+  } else {
+    mostrarErroClientes(
+      resposta.erro ?? "Não foi possível recarregar os clientes.",
+    );
+  }
 }
 
 function renderClientes() {
@@ -234,7 +328,7 @@ function renderClientes() {
                 <input type="text" name="nome" value="${c.nome}" required />
               </label>
               <label>Telefone
-                <input type="text" name="telefone" value="${c.telefone}" required />
+                <input type="text" name="telefone" value="${formatarTelefone(c.telefone)}" required />
               </label>
             </div>
             <div class="modal-actions">
@@ -249,7 +343,7 @@ function renderClientes() {
         <div class="card-item">
           <div class="card-item-main">
             <strong>${c.nome}</strong>
-            <small>${c.telefone}</small>
+            <small>${formatarTelefone(c.telefone)}</small>
           </div>
           <div class="modal-actions">
             <button type="button" class="secondary" data-editar-cliente="${c.id}">Editar</button>
@@ -263,6 +357,7 @@ function renderClientes() {
 
   secao.innerHTML = `
     <h2 class="section-title">Clientes</h2>
+    <p id="erro-clientes" class="modal-erro">${estado.erroClientes ?? ""}</p>
     <div class="card-list">${linhas}</div>
     <div class="card">
       <h2 class="section-title">Novo cliente</h2>
@@ -280,6 +375,14 @@ function renderClientes() {
     </div>
   `;
 
+  secao
+    .querySelectorAll<HTMLInputElement>('input[name="telefone"]')
+    .forEach((input) => {
+      input.addEventListener("input", () => {
+        input.value = formatarTelefone(input.value);
+      });
+    });
+
   const form = document.getElementById("form-cliente") as HTMLFormElement;
   form.addEventListener("submit", async (evento) => {
     evento.preventDefault();
@@ -287,8 +390,12 @@ function renderClientes() {
     const nome = String(dados.get("nome") ?? "").trim();
     const telefone = String(dados.get("telefone") ?? "").trim();
     if (!nome || !telefone) return;
-    await window.api.clientes.criar({ nome, telefone });
-    estado.clientes = await window.api.clientes.listar();
+    const resposta = await window.api.clientes.criar({ nome, telefone });
+    if (!resposta.sucesso) {
+      mostrarErroClientes(resposta.erro ?? "Não foi possível cadastrar o cliente.");
+      return;
+    }
+    await recarregarClientes();
     renderClientes();
     renderEquipamentos();
     renderOS();
@@ -322,9 +429,13 @@ function renderClientes() {
         const nome = String(dados.get("nome") ?? "").trim();
         const telefone = String(dados.get("telefone") ?? "").trim();
         if (!nome || !telefone) return;
-        await window.api.clientes.atualizar(id, { nome, telefone });
+        const resposta = await window.api.clientes.atualizar(id, { nome, telefone });
+        if (!resposta.sucesso) {
+          mostrarErroClientes(resposta.erro ?? "Não foi possível salvar o cliente.");
+          return;
+        }
         estado.clienteEditando = null;
-        estado.clientes = await window.api.clientes.listar();
+        await recarregarClientes();
         renderClientes();
         renderEquipamentos();
         renderOS();
@@ -337,19 +448,17 @@ function renderClientes() {
       botao.addEventListener("click", async () => {
         const id = Number(botao.dataset.excluirCliente);
         const cliente = estado.clientes.find((c) => c.id === id);
-        const confirmou = window.confirm(
+        const confirmou = await confirmarAcao(
           `Excluir o cliente "${cliente?.nome ?? ""}"? Essa ação não pode ser desfeita.`,
         );
         if (!confirmou) return;
-        try {
-          await window.api.clientes.excluir(id);
-          estado.clientes = await window.api.clientes.listar();
-          renderClientes();
-        } catch {
-          window.alert(
-            "Não foi possível excluir: este cliente ainda tem equipamentos cadastrados.",
-          );
+        const resposta = await window.api.clientes.excluir(id);
+        if (!resposta.sucesso) {
+          mostrarErroClientes(resposta.erro ?? "Não foi possível excluir o cliente.");
+          return;
         }
+        await recarregarClientes();
+        renderClientes();
       });
     });
 }
@@ -530,7 +639,7 @@ function renderEquipamentos() {
       botao.addEventListener("click", async () => {
         const id = Number(botao.dataset.excluirEquipamento);
         const equipamento = estado.equipamentos.find((e) => e.id === id);
-        const confirmou = window.confirm(
+        const confirmou = await confirmarAcao(
           `Excluir o equipamento "${equipamento?.marca ?? ""} ${equipamento?.modelo ?? ""}"? Essa ação não pode ser desfeita.`,
         );
         if (!confirmou) return;
@@ -539,7 +648,7 @@ function renderEquipamentos() {
           estado.equipamentos = await window.api.equipamentos.listar();
           renderEquipamentos();
         } catch {
-          window.alert(
+          await mostrarAlerta(
             "Não foi possível excluir: este equipamento ainda tem ordens de serviço registradas.",
           );
         }
@@ -735,7 +844,7 @@ function renderOS() {
     .forEach((botao) => {
       botao.addEventListener("click", async () => {
         const id = Number(botao.dataset.excluirOs);
-        const confirmou = window.confirm(
+        const confirmou = await confirmarAcao(
           "Excluir esta ordem de serviço? Essa ação não pode ser desfeita.",
         );
         if (!confirmou) return;
@@ -809,6 +918,14 @@ function renderRelatorio() {
     .getElementById("botao-atualizar-relatorio")
     ?.addEventListener("click", atualizar);
   atualizar();
+}
+
+function formatarTelefone(valor: string): string {
+  const digitos = valor.replace(/\D/g, "").slice(0, 11);
+  if (digitos.length <= 2) return digitos.replace(/^(\d*)/, "($1");
+  if (digitos.length <= 7)
+    return digitos.replace(/^(\d{2})(\d*)/, "($1) $2");
+  return digitos.replace(/^(\d{2})(\d{5})(\d*)/, "($1) $2-$3");
 }
 
 function normalizarTexto(texto: string): string {
