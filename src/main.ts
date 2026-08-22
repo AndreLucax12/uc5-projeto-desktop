@@ -5,6 +5,7 @@ import type {
   equipamentos,
   ordens_de_servico,
   marca_suportada,
+  RespostaIPC,
 } from "./types";
 import { pool } from "./db";
 let mainWindow: BrowserWindow | null = null;
@@ -47,43 +48,81 @@ ipcMain.handle("canal-ping", async () => {
   return "pong do Processo Main!";
 });
 
-ipcMain.handle("clientes:listar", async () => {
-  const resultado = await pool.query<clientes>(
-    "SELECT id, nome, telefone FROM clientes ORDER BY id",
-  );
-  return resultado.rows;
-});
+class ErroDeValidacao extends Error {}
+
+async function comTratamentoDeErro<T>(
+  operacao: () => Promise<T>,
+): Promise<RespostaIPC<T>> {
+  try {
+    const dados = await operacao();
+    return { sucesso: true, dados };
+  } catch (erro) {
+    if (erro instanceof ErroDeValidacao) {
+      return { sucesso: false, erro: erro.message };
+    }
+    if (
+      typeof erro === "object" &&
+      erro !== null &&
+      "code" in erro &&
+      (erro as { code: unknown }).code === "23001"
+    ) {
+      return {
+        sucesso: false,
+        erro: "Não é possível excluir: existem outros registros vinculados a este item.",
+      };
+    }
+    console.error(erro);
+    return {
+      sucesso: false,
+      erro: "Você não está conectado ao banco de dados. Verifique a conexão e tente novamente.",
+    };
+  }
+}
+
+ipcMain.handle("clientes:listar", async () =>
+  comTratamentoDeErro(async () => {
+    const resultado = await pool.query<clientes>(
+      "SELECT id, nome, telefone FROM clientes ORDER BY id",
+    );
+    return resultado.rows;
+  }),
+);
 
 ipcMain.handle(
   "clientes:criar",
-  async (_event, novoCliente: Omit<clientes, "id">) => {
-    const resultado = await pool.query<clientes>(
-      "INSERT INTO clientes (nome, telefone) VALUES ($1, $2) RETURNING id, nome, telefone",
-      [novoCliente.nome, novoCliente.telefone],
-    );
-    return resultado.rows[0];
-  },
+  async (_event, novoCliente: Omit<clientes, "id">) =>
+    comTratamentoDeErro(async () => {
+      const resultado = await pool.query<clientes>(
+        "INSERT INTO clientes (nome, telefone) VALUES ($1, $2) RETURNING id, nome, telefone",
+        [novoCliente.nome, novoCliente.telefone],
+      );
+      return resultado.rows[0];
+    }),
 );
 
 ipcMain.handle(
   "clientes:atualizar",
-  async (_event, id: number, dadosCliente: Omit<clientes, "id">) => {
-    const resultado = await pool.query<clientes>(
-      "UPDATE clientes SET nome = $1, telefone = $2 WHERE id = $3 RETURNING id, nome, telefone",
-      [dadosCliente.nome, dadosCliente.telefone, id],
-    );
-    if (resultado.rowCount === 0) throw new Error("Cliente não encontrado");
-    return resultado.rows[0];
-  },
+  async (_event, id: number, dadosCliente: Omit<clientes, "id">) =>
+    comTratamentoDeErro(async () => {
+      const resultado = await pool.query<clientes>(
+        "UPDATE clientes SET nome = $1, telefone = $2 WHERE id = $3 RETURNING id, nome, telefone",
+        [dadosCliente.nome, dadosCliente.telefone, id],
+      );
+      if (resultado.rowCount === 0)
+        throw new ErroDeValidacao("Cliente não encontrado");
+      return resultado.rows[0];
+    }),
 );
 
-ipcMain.handle("clientes:excluir", async (_event, id: number) => {
-  const resultado = await pool.query("DELETE FROM clientes WHERE id = $1", [
-    id,
-  ]);
-  if (resultado.rowCount === 0) throw new Error("Cliente não encontrado");
-  return { sucesso: true };
-});
+ipcMain.handle("clientes:excluir", async (_event, id: number) =>
+  comTratamentoDeErro(async () => {
+    const resultado = await pool.query("DELETE FROM clientes WHERE id = $1", [
+      id,
+    ]);
+    if (resultado.rowCount === 0)
+      throw new ErroDeValidacao("Cliente não encontrado");
+  }),
+);
 
 ipcMain.handle("equipamentos:listar", async () => {
   const resultado = await pool.query<equipamentos>(

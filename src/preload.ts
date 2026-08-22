@@ -4,17 +4,22 @@ import type {
   equipamentos,
   ordens_de_servico,
   marca_suportada,
+  RespostaIPC,
 } from "./types";
 
 contextBridge.exposeInMainWorld("api", {
   ping: () => ipcRenderer.invoke("canal-ping"),
   clientes: {
-    listar: (): Promise<clientes[]> => ipcRenderer.invoke("clientes:listar"),
-    criar: (cliente: Omit<clientes, "id">): Promise<clientes> =>
+    listar: (): Promise<RespostaIPC<clientes[]>> =>
+      ipcRenderer.invoke("clientes:listar"),
+    criar: (cliente: Omit<clientes, "id">): Promise<RespostaIPC<clientes>> =>
       ipcRenderer.invoke("clientes:criar", cliente),
-    atualizar: (id: number, cliente: Omit<clientes, "id">): Promise<clientes> =>
+    atualizar: (
+      id: number,
+      cliente: Omit<clientes, "id">,
+    ): Promise<RespostaIPC<clientes>> =>
       ipcRenderer.invoke("clientes:atualizar", id, cliente),
-    excluir: (id: number): Promise<{ sucesso: boolean }> =>
+    excluir: (id: number): Promise<RespostaIPC<void>> =>
       ipcRenderer.invoke("clientes:excluir", id),
   },
   equipamentos: {

@@ -25,3 +25,9 @@ export interface marca_suportada{
     garantiaMeses: number;
 }
 
+export interface RespostaIPC<T> {
+    sucesso: boolean;
+    dados?: T;
+    erro?: string;
+}
+
