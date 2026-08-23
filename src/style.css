@@ -142,14 +142,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
 .card-item-main strong {
   font-size: 0.95rem;
+  overflow-wrap: break-word;
 }
 
 .card-item-main small {
   color: var(--text-secondary);
+  overflow-wrap: break-word;
 }
 
 .empty-state {
@@ -209,6 +213,10 @@ button {
 
 button:hover {
   background: var(--accent-hover);
+}
+
+#form-os > label {
+  margin-bottom: 12px;
 }
 
 button.secondary {
@@ -371,6 +379,7 @@ button.secondary:hover {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 14px;
+  overflow-wrap: break-word;
 }
 
 #lista-os-finalizadas mark {

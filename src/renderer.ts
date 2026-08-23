@@ -116,6 +116,11 @@ function descricaoEquipamento(idEquipamento: number): string {
     : `Equipamento #${idEquipamento}`;
 }
 
+function clienteDaOS(idEquipamento: number): string {
+  const equipamento = estado.equipamentos.find((e) => e.id === idEquipamento);
+  return equipamento ? nomeCliente(equipamento.id_cliente) : "Cliente desconhecido";
+}
+
 function pedirValor(mensagem: string): Promise<number | null> {
   return new Promise((resolve) => {
     const overlay = document.createElement("div");
@@ -577,6 +582,20 @@ function renderEquipamentos() {
     </div>
     <div class="card-list">${linhas}</div>
     <div class="card">
+      <h2 class="section-title">Novo equipamento</h2>
+      <form id="form-equipamento">
+        <div class="form-grid">
+          <label>Marca
+            <input type="text" name="marca" required />
+          </label>
+          <label>Modelo
+            <input type="text" name="modelo" required />
+          </label>
+        </div>
+        <button type="submit" ${estado.clienteFiltroEquipamentos ? "" : "disabled"}>Cadastrar</button>
+      </form>
+    </div>
+    <div class="card">
       <h2 class="section-title">Marcas atendidas</h2>
       <div class="card-list">
         ${estado.marcasSuportadas
@@ -592,20 +611,6 @@ function renderEquipamentos() {
           )
           .join("")}
       </div>
-    </div>
-    <div class="card">
-      <h2 class="section-title">Novo equipamento</h2>
-      <form id="form-equipamento">
-        <div class="form-grid">
-          <label>Marca
-            <input type="text" name="marca" required />
-          </label>
-          <label>Modelo
-            <input type="text" name="modelo" required />
-          </label>
-        </div>
-        <button type="submit" ${estado.clienteFiltroEquipamentos ? "" : "disabled"}>Cadastrar</button>
-      </form>
     </div>
   `;
 
@@ -776,7 +781,7 @@ function renderOS() {
           return `
         <div class="card-item">
           <div class="card-item-main">
-            <strong>${descricaoEquipamento(os.id_equipamento)}</strong>
+            <strong>${clienteDaOS(os.id_equipamento)} — ${descricaoEquipamento(os.id_equipamento)}</strong>
             <small>${os.descricao_defeito}</small>
           </div>
           <span class="${classeBadge(os.status)}">${os.status}</span>
