@@ -32,20 +32,20 @@ declare global {
       };
 
       os: {
-        listar: (termo?: string) => Promise<ordens_de_servico[]>;
+        listar: (termo?: string) => Promise<RespostaIPC<ordens_de_servico[]>>;
         criar: (
           os: Omit<ordens_de_servico, "id" | "status" | "valor_total" | "data_abertura">,
-        ) => Promise<ordens_de_servico>;
+        ) => Promise<RespostaIPC<ordens_de_servico>>;
         atualizarStatus: (
           id: number,
           status: ordens_de_servico["status"],
           valorTotal?: number,
-        ) => Promise<ordens_de_servico>;
-        excluir: (id: number) => Promise<{ sucesso: boolean }>;
+        ) => Promise<RespostaIPC<ordens_de_servico>>;
+        excluir: (id: number) => Promise<RespostaIPC<void>>;
         relatorioFaturamento: (
           dataInicio?: string,
           dataFim?: string,
-        ) => Promise<{ total: number }>;
+        ) => Promise<RespostaIPC<{ total: number }>>;
       };
     };
   }
@@ -69,6 +69,7 @@ const estado: {
   filtroRelatorioFim: string;
   erroClientes: string | null;
   erroEquipamentos: string | null;
+  erroOS: string | null;
 } = {
   aba: "clientes",
   clientes: [],
@@ -85,6 +86,7 @@ const estado: {
   filtroRelatorioFim: "",
   erroClientes: null,
   erroEquipamentos: null,
+  erroOS: null,
 };
 
 const proximoStatus: Record<
@@ -264,7 +266,13 @@ async function carregarDados() {
     estado.erroEquipamentos =
       equipamentosResp.erro ?? "Não foi possível carregar os equipamentos.";
   }
-  estado.ordens = ordensResp;
+  if (ordensResp.sucesso) {
+    estado.ordens = ordensResp.dados ?? [];
+    estado.erroOS = null;
+  } else {
+    estado.ordens = [];
+    estado.erroOS = ordensResp.erro ?? "Não foi possível carregar as ordens de serviço.";
+  }
   estado.marcasSuportadas = marcasResp;
 }
 
@@ -378,6 +386,14 @@ function renderClientes() {
     const nome = String(dados.get("nome") ?? "").trim();
     const telefone = String(dados.get("telefone") ?? "").trim();
     if (!nome || !telefone) return;
+    if (/\d/.test(nome)) {
+      mostrarErroClientes("O nome do cliente não pode conter números.");
+      return;
+    }
+    if (!telefoneCompleto(telefone)) {
+      mostrarErroClientes("Telefone incompleto. Digite o DDD e o número completo.");
+      return;
+    }
     const resposta = await window.api.clientes.criar({ nome, telefone });
     if (!resposta.sucesso) {
       mostrarErroClientes(resposta.erro ?? "Não foi possível cadastrar o cliente.");
@@ -417,6 +433,14 @@ function renderClientes() {
         const nome = String(dados.get("nome") ?? "").trim();
         const telefone = String(dados.get("telefone") ?? "").trim();
         if (!nome || !telefone) return;
+        if (/\d/.test(nome)) {
+          mostrarErroClientes("O nome do cliente não pode conter números.");
+          return;
+        }
+        if (!telefoneCompleto(telefone)) {
+          mostrarErroClientes("Telefone incompleto. Digite o DDD e o número completo.");
+          return;
+        }
         const resposta = await window.api.clientes.atualizar(id, { nome, telefone });
         if (!resposta.sucesso) {
           mostrarErroClientes(resposta.erro ?? "Não foi possível salvar o cliente.");
@@ -681,6 +705,34 @@ function renderEquipamentos() {
     });
 }
 
+let temporizadorErroOS: ReturnType<typeof setTimeout> | null = null;
+
+function mostrarErroOS(mensagem: string) {
+  estado.erroOS = mensagem;
+  renderOS();
+
+  if (temporizadorErroOS) clearTimeout(temporizadorErroOS);
+  temporizadorErroOS = setTimeout(() => {
+    temporizadorErroOS = null;
+    estado.erroOS = null;
+    renderOS();
+  }, 5000);
+}
+
+async function recarregarOrdens() {
+  const resposta = await window.api.os.listar();
+  if (resposta.sucesso) {
+    estado.ordens = resposta.dados ?? [];
+    if (temporizadorErroOS) {
+      clearTimeout(temporizadorErroOS);
+      temporizadorErroOS = null;
+    }
+    estado.erroOS = null;
+  } else {
+    mostrarErroOS(resposta.erro ?? "Não foi possível recarregar as ordens de serviço.");
+  }
+}
+
 function renderOS() {
   const secao = document.getElementById("secao-os") as HTMLElement;
 
@@ -741,6 +793,7 @@ function renderOS() {
       : '<p class="empty-state">Nenhuma ordem de serviço aberta ainda.</p>';
 
   secao.innerHTML = `
+    <p id="erro-os" class="modal-erro">${estado.erroOS ?? ""}</p>
     <h2 class="section-title">Abrir nova OS</h2>
     <div class="card">
       <form id="form-os">
@@ -832,11 +885,15 @@ function renderOS() {
       dados.get("descricao_defeito") ?? "",
     ).trim();
     if (!idEquipamento || !descricaoDefeito) return;
-    await window.api.os.criar({
+    const resposta = await window.api.os.criar({
       id_equipamento: idEquipamento,
       descricao_defeito: descricaoDefeito,
     });
-    estado.ordens = await window.api.os.listar();
+    if (!resposta.sucesso) {
+      mostrarErroOS(resposta.erro ?? "Não foi possível abrir a OS.");
+      return;
+    }
+    await recarregarOrdens();
     renderOS();
     renderRelatorio();
   });
@@ -857,10 +914,15 @@ function renderOS() {
           valor = resultado;
         }
 
-        await window.api.os.atualizarStatus(id, proximo, valor);
-        estado.ordens = await window.api.os.listar();
+        const resposta = await window.api.os.atualizarStatus(id, proximo, valor);
+        if (!resposta.sucesso) {
+          mostrarErroOS(resposta.erro ?? "Não foi possível atualizar o status.");
+          return;
+        }
+        await recarregarOrdens();
         renderOS();
         renderRelatorio();
+        atualizarBuscaOSFinalizadas();
       });
     });
 
@@ -873,10 +935,15 @@ function renderOS() {
           "Excluir esta ordem de serviço? Essa ação não pode ser desfeita.",
         );
         if (!confirmou) return;
-        await window.api.os.excluir(id);
-        estado.ordens = await window.api.os.listar();
+        const resposta = await window.api.os.excluir(id);
+        if (!resposta.sucesso) {
+          mostrarErroOS(resposta.erro ?? "Não foi possível excluir a OS.");
+          return;
+        }
+        await recarregarOrdens();
         renderOS();
         renderRelatorio();
+        atualizarBuscaOSFinalizadas();
       });
     });
 }
@@ -896,6 +963,7 @@ function renderRelatorio() {
       </div>
       <button type="button" class="secondary" id="botao-limpar-filtro-relatorio">Limpar período</button>
     </div>
+    <p id="erro-relatorio" class="modal-erro"></p>
     <div class="stat-card">
       <p class="label">Total faturado (OS finalizadas)</p>
       <p class="valor" id="valor-faturamento">carregando...</p>
@@ -904,11 +972,22 @@ function renderRelatorio() {
   `;
 
   const atualizar = async () => {
-    const { total } = await window.api.os.relatorioFaturamento(
+    const erro = document.getElementById("erro-relatorio") as HTMLParagraphElement;
+    const valorEl = document.getElementById("valor-faturamento") as HTMLElement;
+    erro.textContent = "";
+
+    const resposta = await window.api.os.relatorioFaturamento(
       estado.filtroRelatorioInicio || undefined,
       estado.filtroRelatorioFim || undefined,
     );
-    const valorEl = document.getElementById("valor-faturamento") as HTMLElement;
+
+    if (!resposta.sucesso) {
+      erro.textContent = resposta.erro ?? "Não foi possível carregar o faturamento.";
+      valorEl.textContent = "—";
+      return;
+    }
+
+    const total = resposta.dados?.total ?? 0;
     valorEl.textContent = total.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
@@ -951,6 +1030,11 @@ function formatarTelefone(valor: string): string {
   if (digitos.length <= 7)
     return digitos.replace(/^(\d{2})(\d*)/, "($1) $2");
   return digitos.replace(/^(\d{2})(\d{5})(\d*)/, "($1) $2-$3");
+}
+
+function telefoneCompleto(valor: string): boolean {
+  const digitos = valor.replace(/\D/g, "");
+  return digitos.length === 10 || digitos.length === 11;
 }
 
 function normalizarTexto(texto: string): string {
@@ -1017,43 +1101,49 @@ function renderizarListaOSFinalizadas(ordens: ordens_de_servico[], termoDestaque
 
 async function buscarOSFinalizadas(termo?: string) {
   const erro = document.getElementById("erro-buscar-os-finalizadas") as HTMLParagraphElement;
+  const lista = document.getElementById("lista-os-finalizadas") as HTMLUListElement;
   erro.textContent = "";
 
-  try {
-    const todasAsOrdens = await window.api.os.listar(termo);
-    const finalizadas = todasAsOrdens.filter((os) => os.status === "finalizada");
-
-    if (finalizadas.length === 0) {
-      (document.getElementById("lista-os-finalizadas") as HTMLUListElement).textContent = "";
-      erro.textContent = "Nenhuma OS finalizada registrada ainda.";
-      return;
-    }
-
-    const termoBusca = (termo ?? "").trim();
-    const termoNormalizado = normalizarTexto(termoBusca);
-
-    const existeCorrespondencia =
-      !termoNormalizado ||
-      finalizadas.some((os) => {
-        const equipamento = estado.equipamentos.find((e) => e.id === os.id_equipamento);
-        const nomeDoCliente = equipamento ? nomeCliente(equipamento.id_cliente) : "";
-        return normalizarTexto(nomeDoCliente).includes(termoNormalizado);
-      });
-
-    renderizarListaOSFinalizadas(finalizadas, termoBusca);
-
-    if (termoNormalizado && !existeCorrespondencia) {
-      erro.textContent =
-        "Nenhuma correspondência para esse termo — mostrando todas as OS finalizadas.";
-    }
-  }  catch (falha) {
-    (document.getElementById("lista-os-finalizadas") as HTMLUListElement).textContent = "";
-    if (falha instanceof Error && falha.message.includes("não use números")) {
-      erro.textContent = "Termo de busca inválido: não use números.";
-    } else {
-      erro.textContent = "Não foi possível buscar agora: sem conexão com o banco de dados.";
-    }
+  const resposta = await window.api.os.listar(termo);
+  if (!resposta.sucesso) {
+    lista.textContent = "";
+    erro.textContent = resposta.erro ?? "Não foi possível buscar agora.";
+    return;
   }
+
+  const finalizadas = (resposta.dados ?? []).filter((os) => os.status === "finalizada");
+
+  if (finalizadas.length === 0) {
+    lista.textContent = "";
+    erro.textContent = "Nenhuma OS finalizada registrada ainda.";
+    return;
+  }
+
+  const termoBusca = (termo ?? "").trim();
+  const termoNormalizado = normalizarTexto(termoBusca);
+
+  const existeCorrespondencia =
+    !termoNormalizado ||
+    finalizadas.some((os) => {
+      const equipamento = estado.equipamentos.find((e) => e.id === os.id_equipamento);
+      const nomeDoCliente = equipamento ? nomeCliente(equipamento.id_cliente) : "";
+      return normalizarTexto(nomeDoCliente).includes(termoNormalizado);
+    });
+
+  renderizarListaOSFinalizadas(finalizadas, termoBusca);
+
+  if (termoNormalizado && !existeCorrespondencia) {
+    erro.textContent =
+      "Nenhuma correspondência para esse termo — mostrando todas as OS finalizadas.";
+  }
+}
+
+function atualizarBuscaOSFinalizadas() {
+  const campoBusca = document.getElementById(
+    "campo-buscar-os-finalizadas",
+  ) as HTMLInputElement | null;
+  if (!campoBusca) return;
+  buscarOSFinalizadas(campoBusca.value.trim() || undefined);
 }
 
 function iniciarExercicioOSFinalizadas() {

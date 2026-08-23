@@ -40,23 +40,23 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke("equipamentos:listar-marcas-suportadas"),
   },
   os: {
-    listar: (termo?: string): Promise<ordens_de_servico[]> =>
+    listar: (termo?: string): Promise<RespostaIPC<ordens_de_servico[]>> =>
       ipcRenderer.invoke("os:listar", termo),
     criar: (
       os: Omit<ordens_de_servico, "id" | "status" | "valor_total" | "data_abertura">,
-    ): Promise<ordens_de_servico> => ipcRenderer.invoke("os:criar", os),
+    ): Promise<RespostaIPC<ordens_de_servico>> => ipcRenderer.invoke("os:criar", os),
     atualizarStatus: (
       id: number,
       status: ordens_de_servico["status"],
       valorTotal?: number,
-    ): Promise<ordens_de_servico> =>
+    ): Promise<RespostaIPC<ordens_de_servico>> =>
       ipcRenderer.invoke("os:atualizar-status", id, status, valorTotal),
-    excluir: (id: number): Promise<{ sucesso: boolean }> =>
+    excluir: (id: number): Promise<RespostaIPC<void>> =>
       ipcRenderer.invoke("os:excluir", id),
     relatorioFaturamento: (
       dataInicio?: string,
       dataFim?: string,
-    ): Promise<{ total: number }> =>
+    ): Promise<RespostaIPC<{ total: number }>> =>
       ipcRenderer.invoke("os:relatorio-faturamento", dataInicio, dataFim),
   },
 });

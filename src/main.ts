@@ -79,6 +79,18 @@ async function comTratamentoDeErro<T>(
   }
 }
 
+function validarDadosCliente(cliente: Omit<clientes, "id">) {
+  if (/\d/.test(cliente.nome)) {
+    throw new ErroDeValidacao("O nome do cliente não pode conter números.");
+  }
+  const digitosTelefone = cliente.telefone.replace(/\D/g, "");
+  if (digitosTelefone.length < 10 || digitosTelefone.length > 11) {
+    throw new ErroDeValidacao(
+      "Telefone incompleto. Digite o DDD e o número completo.",
+    );
+  }
+}
+
 ipcMain.handle("clientes:listar", async () =>
   comTratamentoDeErro(async () => {
     const resultado = await pool.query<clientes>(
@@ -92,6 +104,7 @@ ipcMain.handle(
   "clientes:criar",
   async (_event, novoCliente: Omit<clientes, "id">) =>
     comTratamentoDeErro(async () => {
+      validarDadosCliente(novoCliente);
       const resultado = await pool.query<clientes>(
         "INSERT INTO clientes (nome, telefone) VALUES ($1, $2) RETURNING id, nome, telefone",
         [novoCliente.nome, novoCliente.telefone],
@@ -104,6 +117,7 @@ ipcMain.handle(
   "clientes:atualizar",
   async (_event, id: number, dadosCliente: Omit<clientes, "id">) =>
     comTratamentoDeErro(async () => {
+      validarDadosCliente(dadosCliente);
       const resultado = await pool.query<clientes>(
         "UPDATE clientes SET nome = $1, telefone = $2 WHERE id = $3 RETURNING id, nome, telefone",
         [dadosCliente.nome, dadosCliente.telefone, id],
@@ -203,28 +217,31 @@ ipcMain.handle(
   async () => marcasSuportadas,
 );
 
-ipcMain.handle("os:listar", async (_event, termo?: string) => {
-  if (termo !== undefined && /\d/.test(termo.trim())) {
-    throw new Error("Termo de busca inválido: não use números.");
-  }
-  const resultado = await pool.query<ordens_de_servico>(
-    "SELECT id, id_equipamento, descricao_defeito, status, valor_total, data_abertura FROM ordens_servico ORDER BY id DESC",
-  );
-  return resultado.rows;
-});
+ipcMain.handle("os:listar", async (_event, termo?: string) =>
+  comTratamentoDeErro(async () => {
+    if (termo !== undefined && /\d/.test(termo.trim())) {
+      throw new ErroDeValidacao("Termo de busca inválido: não use números.");
+    }
+    const resultado = await pool.query<ordens_de_servico>(
+      "SELECT id, id_equipamento, descricao_defeito, status, valor_total, data_abertura FROM ordens_servico ORDER BY id DESC",
+    );
+    return resultado.rows;
+  }),
+);
 
 ipcMain.handle(
   "os:criar",
   async (
     _event,
     novaOS: Omit<ordens_de_servico, "id" | "status" | "valor_total" | "data_abertura">,
-  ) => {
-    const resultado = await pool.query<ordens_de_servico>(
-      "INSERT INTO ordens_servico (id_equipamento, descricao_defeito) VALUES ($1, $2) RETURNING id, id_equipamento, descricao_defeito, status, valor_total, data_abertura",
-      [novaOS.id_equipamento, novaOS.descricao_defeito],
-    );
-    return resultado.rows[0];
-  },
+  ) =>
+    comTratamentoDeErro(async () => {
+      const resultado = await pool.query<ordens_de_servico>(
+        "INSERT INTO ordens_servico (id_equipamento, descricao_defeito) VALUES ($1, $2) RETURNING id, id_equipamento, descricao_defeito, status, valor_total, data_abertura",
+        [novaOS.id_equipamento, novaOS.descricao_defeito],
+      );
+      return resultado.rows[0];
+    }),
 );
 
 ipcMain.handle(
@@ -234,46 +251,51 @@ ipcMain.handle(
     id: number,
     novoStatus: ordens_de_servico["status"],
     valorTotal?: number,
-  ) => {
-    const resultado = await pool.query<ordens_de_servico>(
-      "UPDATE ordens_servico SET status = $1, valor_total = COALESCE($3, valor_total) WHERE id = $2 RETURNING id, id_equipamento, descricao_defeito, status, valor_total, data_abertura",
-      [novoStatus, id, valorTotal ?? null],
-    );
-    if (resultado.rowCount === 0) throw new Error("OS não encontrada");
-    return resultado.rows[0];
-  },
+  ) =>
+    comTratamentoDeErro(async () => {
+      const resultado = await pool.query<ordens_de_servico>(
+        "UPDATE ordens_servico SET status = $1, valor_total = COALESCE($3, valor_total) WHERE id = $2 RETURNING id, id_equipamento, descricao_defeito, status, valor_total, data_abertura",
+        [novoStatus, id, valorTotal ?? null],
+      );
+      if (resultado.rowCount === 0)
+        throw new ErroDeValidacao("OS não encontrada");
+      return resultado.rows[0];
+    }),
 );
 
-ipcMain.handle("os:excluir", async (_event, id: number) => {
-  const resultado = await pool.query(
-    "DELETE FROM ordens_servico WHERE id = $1",
-    [id],
-  );
-  if (resultado.rowCount === 0) throw new Error("OS não encontrada");
-  return { sucesso: true };
-});
+ipcMain.handle("os:excluir", async (_event, id: number) =>
+  comTratamentoDeErro(async () => {
+    const resultado = await pool.query(
+      "DELETE FROM ordens_servico WHERE id = $1",
+      [id],
+    );
+    if (resultado.rowCount === 0)
+      throw new ErroDeValidacao("OS não encontrada");
+  }),
+);
 
 ipcMain.handle(
   "os:relatorio-faturamento",
-  async (_event, dataInicio?: string, dataFim?: string) => {
-    const condicoes = ["status = 'finalizada'"];
-    const parametros: string[] = [];
+  async (_event, dataInicio?: string, dataFim?: string) =>
+    comTratamentoDeErro(async () => {
+      const condicoes = ["status = 'finalizada'"];
+      const parametros: string[] = [];
 
-    if (dataInicio) {
-      parametros.push(dataInicio);
-      condicoes.push(`data_abertura >= $${parametros.length}::date`);
-    }
-    if (dataFim) {
-      parametros.push(dataFim);
-      condicoes.push(`data_abertura < $${parametros.length}::date + interval '1 day'`);
-    }
+      if (dataInicio) {
+        parametros.push(dataInicio);
+        condicoes.push(`data_abertura >= $${parametros.length}::date`);
+      }
+      if (dataFim) {
+        parametros.push(dataFim);
+        condicoes.push(`data_abertura < $${parametros.length}::date + interval '1 day'`);
+      }
 
-    const resultado = await pool.query<{ total: number }>(
-      `SELECT COALESCE(SUM(valor_total), 0) AS total FROM ordens_servico WHERE ${condicoes.join(" AND ")}`,
-      parametros,
-    );
-    return { total: resultado.rows[0].total };
-  },
+      const resultado = await pool.query<{ total: number }>(
+        `SELECT COALESCE(SUM(valor_total), 0) AS total FROM ordens_servico WHERE ${condicoes.join(" AND ")}`,
+        parametros,
+      );
+      return { total: resultado.rows[0].total };
+    }),
 );
 
 function criarMenu() {
