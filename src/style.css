@@ -156,6 +156,20 @@ body {
   overflow-wrap: break-word;
 }
 
+.card-item-side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.card-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .empty-state {
   color: var(--text-secondary);
   font-size: 0.9rem;
@@ -228,6 +242,42 @@ button.secondary {
 button.secondary:hover {
   border-color: var(--text-secondary);
   background: var(--bg-card-hover);
+}
+
+button.btn-excluir {
+  background: var(--accent);
+  color: #fff;
+}
+
+button.btn-excluir:hover {
+  background: var(--accent-hover);
+}
+
+/* Setas do input numérico (valor cobrado na OS) */
+input[type="number"] {
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+  height: 26px;
+  width: 20px;
+  cursor: pointer;
+  filter: invert(1) brightness(1.6);
+  opacity: 0.75;
+}
+
+input[type="number"]::-webkit-inner-spin-button:hover,
+input[type="number"]::-webkit-outer-spin-button:hover {
+  opacity: 1;
+}
+
+/* Ícone do calendário nos filtros de data (aba Relatório) */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.8);
+  cursor: pointer;
 }
 
 /* Badges de status */

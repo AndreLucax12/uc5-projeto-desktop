@@ -337,7 +337,7 @@ function renderClientes() {
           </div>
           <div class="modal-actions">
             <button type="button" class="secondary" data-editar-cliente="${c.id}">Editar</button>
-            <button type="button" class="secondary" data-excluir-cliente="${c.id}">Excluir</button>
+            <button type="button" class="btn-excluir" data-excluir-cliente="${c.id}">Excluir</button>
           </div>
         </div>
       `;
@@ -545,7 +545,7 @@ function renderEquipamentos() {
           </div>
           <div class="modal-actions">
             <button type="button" class="secondary" data-editar-equipamento="${e.id}">Editar</button>
-            <button type="button" class="secondary" data-excluir-equipamento="${e.id}">Excluir</button>
+            <button type="button" class="btn-excluir" data-excluir-equipamento="${e.id}">Excluir</button>
           </div>
         </div>
       `;
@@ -770,10 +770,12 @@ function renderOS() {
             <strong>${os.nome_cliente} — ${os.marca} ${os.modelo}</strong>
             <small>${os.descricao_defeito}</small>
           </div>
-          <span class="${classeBadge(os.status)}">${os.status}</span>
-          <div class="modal-actions">
-            ${proximo ? `<button class="secondary" data-avancar="${os.id}">Marcar como "${proximo}"</button>` : ""}
-            <button class="secondary" data-excluir-os="${os.id}">Excluir</button>
+          <div class="card-item-side">
+            <span class="${classeBadge(os.status)}">${os.status}</span>
+            <div class="card-item-actions">
+              ${proximo ? `<button class="secondary" data-avancar="${os.id}">Marcar como "${proximo}"</button>` : ""}
+              <button class="btn-excluir" data-excluir-os="${os.id}">Excluir</button>
+            </div>
           </div>
         </div>
       `;
