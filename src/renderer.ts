@@ -3,6 +3,7 @@ import type {
   clientes,
   equipamentos,
   ordens_de_servico,
+  ordem_servico_detalhada,
   marca_suportada,
   RespostaIPC,
 } from "./types";
@@ -32,7 +33,7 @@ declare global {
       };
 
       os: {
-        listar: (termo?: string) => Promise<RespostaIPC<ordens_de_servico[]>>;
+        listar: (termo?: string) => Promise<RespostaIPC<ordem_servico_detalhada[]>>;
         criar: (
           os: Omit<ordens_de_servico, "id" | "status" | "valor_total" | "data_abertura">,
         ) => Promise<RespostaIPC<ordens_de_servico>>;
@@ -57,7 +58,7 @@ const estado: {
   aba: Aba;
   clientes: clientes[];
   equipamentos: equipamentos[];
-  ordens: ordens_de_servico[];
+  ordens: ordem_servico_detalhada[];
   marcasSuportadas: marca_suportada[];
   clienteFiltroEquipamentos: number | null;
   clienteFormOS: number | null;
@@ -107,18 +108,6 @@ function nomeCliente(idCliente: number): string {
     estado.clientes.find((c) => c.id === idCliente)?.nome ??
     `Cliente #${idCliente}`
   );
-}
-
-function descricaoEquipamento(idEquipamento: number): string {
-  const equipamento = estado.equipamentos.find((e) => e.id === idEquipamento);
-  return equipamento
-    ? `${equipamento.marca} ${equipamento.modelo}`
-    : `Equipamento #${idEquipamento}`;
-}
-
-function clienteDaOS(idEquipamento: number): string {
-  const equipamento = estado.equipamentos.find((e) => e.id === idEquipamento);
-  return equipamento ? nomeCliente(equipamento.id_cliente) : "Cliente desconhecido";
 }
 
 function pedirValor(mensagem: string): Promise<number | null> {
@@ -767,10 +756,7 @@ function renderOS() {
 
   const ordensFiltradas = ordensOrdenadas.filter((os) => {
     if (estado.filtroStatusOS !== "todas" && os.status !== estado.filtroStatusOS) return false
-    if (estado.filtroClienteOS !== null) {
-      const equipamento = estado.equipamentos.find((e) => e.id === os.id_equipamento)
-      if (!equipamento || equipamento.id_cliente !== estado.filtroClienteOS) return false
-    }
+    if (estado.filtroClienteOS !== null && os.id_cliente !== estado.filtroClienteOS) return false
     return true
   })
 
@@ -781,7 +767,7 @@ function renderOS() {
           return `
         <div class="card-item">
           <div class="card-item-main">
-            <strong>${clienteDaOS(os.id_equipamento)} — ${descricaoEquipamento(os.id_equipamento)}</strong>
+            <strong>${os.nome_cliente} — ${os.marca} ${os.modelo}</strong>
             <small>${os.descricao_defeito}</small>
           </div>
           <span class="${classeBadge(os.status)}">${os.status}</span>
@@ -1080,20 +1066,15 @@ function montarTextoComDestaque(elemento: HTMLElement, texto: string, termo: str
   if (depois) elemento.appendChild(document.createTextNode(depois));
 }
 
-function renderizarListaOSFinalizadas(ordens: ordens_de_servico[], termoDestaque: string) {
+function renderizarListaOSFinalizadas(ordens: ordem_servico_detalhada[], termoDestaque: string) {
   const lista = document.getElementById("lista-os-finalizadas") as HTMLUListElement;
   lista.textContent = "";
 
   ordens.forEach((os) => {
-    const equipamento = estado.equipamentos.find((e) => e.id === os.id_equipamento);
-    const nomeDoCliente = equipamento
-      ? nomeCliente(equipamento.id_cliente)
-      : "Cliente desconhecido";
-
     const item = document.createElement("li");
 
     const cliente = document.createElement("strong");
-    montarTextoComDestaque(cliente, nomeDoCliente, termoDestaque);
+    montarTextoComDestaque(cliente, os.nome_cliente, termoDestaque);
 
     const detalhe = document.createElement("span");
     detalhe.textContent = ` — ${os.descricao_defeito} — ${os.valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`;
@@ -1129,11 +1110,7 @@ async function buscarOSFinalizadas(termo?: string) {
 
   const existeCorrespondencia =
     !termoNormalizado ||
-    finalizadas.some((os) => {
-      const equipamento = estado.equipamentos.find((e) => e.id === os.id_equipamento);
-      const nomeDoCliente = equipamento ? nomeCliente(equipamento.id_cliente) : "";
-      return normalizarTexto(nomeDoCliente).includes(termoNormalizado);
-    });
+    finalizadas.some((os) => normalizarTexto(os.nome_cliente).includes(termoNormalizado));
 
   renderizarListaOSFinalizadas(finalizadas, termoBusca);
 

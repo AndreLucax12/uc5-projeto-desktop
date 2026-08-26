@@ -3,6 +3,7 @@ import type {
   clientes,
   equipamentos,
   ordens_de_servico,
+  ordem_servico_detalhada,
   marca_suportada,
   RespostaIPC,
 } from "./types";
@@ -40,7 +41,7 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke("equipamentos:listar-marcas-suportadas"),
   },
   os: {
-    listar: (termo?: string): Promise<RespostaIPC<ordens_de_servico[]>> =>
+    listar: (termo?: string): Promise<RespostaIPC<ordem_servico_detalhada[]>> =>
       ipcRenderer.invoke("os:listar", termo),
     criar: (
       os: Omit<ordens_de_servico, "id" | "status" | "valor_total" | "data_abertura">,

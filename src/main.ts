@@ -5,6 +5,7 @@ import type {
   clientes,
   equipamentos,
   ordens_de_servico,
+  ordem_servico_detalhada,
   marca_suportada,
   RespostaIPC,
 } from "./types";
@@ -225,8 +226,25 @@ ipcMain.handle("os:listar", async (_event, termo?: string) =>
     if (termo !== undefined && /\d/.test(termo.trim())) {
       throw new ErroDeValidacao("Termo de busca inválido: não use números.");
     }
-    const resultado = await pool.query<ordens_de_servico>(
-      "SELECT id, id_equipamento, descricao_defeito, status, valor_total, data_abertura FROM ordens_servico ORDER BY id DESC",
+    // INNER JOIN: id_equipamento e id_cliente são NOT NULL no schema, então
+    // uma OS sempre tem equipamento e um equipamento sempre tem cliente —
+    // não existe o caso de "OS sem equipamento" que pediria LEFT JOIN aqui.
+    const resultado = await pool.query<ordem_servico_detalhada>(
+      `SELECT
+         o.id AS id,
+         o.id_equipamento AS id_equipamento,
+         o.descricao_defeito AS descricao_defeito,
+         o.status AS status,
+         o.valor_total AS valor_total,
+         o.data_abertura AS data_abertura,
+         e.marca AS marca,
+         e.modelo AS modelo,
+         e.id_cliente AS id_cliente,
+         c.nome AS nome_cliente
+       FROM ordens_servico o
+       INNER JOIN equipamentos e ON e.id = o.id_equipamento
+       INNER JOIN clientes c ON c.id = e.id_cliente
+       ORDER BY o.id DESC`,
     );
     return resultado.rows;
   }),

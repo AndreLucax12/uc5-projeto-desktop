@@ -20,6 +20,13 @@ export interface ordens_de_servico {
     data_abertura: string;
 }
 
+export interface ordem_servico_detalhada extends ordens_de_servico {
+    marca: string;
+    modelo: string;
+    id_cliente: number;
+    nome_cliente: string;
+}
+
 export interface marca_suportada{
     marca: string;
     garantiaMeses: number;
