@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import path from "path";
 import { pathToFileURL } from "url";
+import dns from "dns";
 import type {
   clientes,
   equipamentos,
@@ -10,6 +11,10 @@ import type {
   RespostaIPC,
 } from "./types";
 import { pool } from "./db";
+
+// Evita AggregateError de conexão em redes que tentam IPv6 antes de IPv4.
+dns.setDefaultResultOrder("ipv4first");
+
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
@@ -73,6 +78,17 @@ async function comTratamentoDeErro<T>(
       return {
         sucesso: false,
         erro: "Não é possível excluir: existem outros registros vinculados a este item.",
+      };
+    }
+    if (
+      typeof erro === "object" &&
+      erro !== null &&
+      "code" in erro &&
+      (erro as { code: unknown }).code === "42P01"
+    ) {
+      return {
+        sucesso: false,
+        erro: "O banco de dados ainda não foi criado. Aplique o schema.sql.",
       };
     }
     console.error(erro);
@@ -226,9 +242,11 @@ ipcMain.handle("os:listar", async (_event, termo?: string) =>
     if (termo !== undefined && /\d/.test(termo.trim())) {
       throw new ErroDeValidacao("Termo de busca inválido: não use números.");
     }
-    // INNER JOIN: id_equipamento e id_cliente são NOT NULL no schema, então
-    // uma OS sempre tem equipamento e um equipamento sempre tem cliente —
-    // não existe o caso de "OS sem equipamento" que pediria LEFT JOIN aqui.
+    // LEFT JOIN: id_equipamento e id_cliente são NOT NULL no schema, então na
+    // prática o resultado é idêntico a um INNER JOIN (nunca existe OS sem
+    // equipamento nem equipamento sem cliente). Fica LEFT de propósito para
+    // exercitar o caso em que a linha do lado direito pode faltar — é a
+    // diferença que o INNER JOIN esconde quando o vínculo é obrigatório.
     const resultado = await pool.query<ordem_servico_detalhada>(
       `SELECT
          o.id AS id,
@@ -242,8 +260,8 @@ ipcMain.handle("os:listar", async (_event, termo?: string) =>
          e.id_cliente AS id_cliente,
          c.nome AS nome_cliente
        FROM ordens_servico o
-       INNER JOIN equipamentos e ON e.id = o.id_equipamento
-       INNER JOIN clientes c ON c.id = e.id_cliente
+       LEFT JOIN equipamentos e ON e.id = o.id_equipamento
+       LEFT JOIN clientes c ON c.id = e.id_cliente
        ORDER BY o.id DESC`,
     );
     return resultado.rows;
