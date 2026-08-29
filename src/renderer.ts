@@ -110,6 +110,32 @@ function nomeCliente(idCliente: number): string {
   );
 }
 
+function rotuloDataAbertura(dataAbertura: string): string {
+  return new Date(dataAbertura).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function comDivisoriasDeData<T extends { data_abertura: string }>(
+  itens: T[],
+  renderizarItem: (item: T) => string,
+): string {
+  let rotuloAnterior: string | null = null;
+  return itens
+    .map((item) => {
+      const rotulo = rotuloDataAbertura(item.data_abertura);
+      const divisoria =
+        rotulo === rotuloAnterior
+          ? ""
+          : `<h3 class="date-divider">${rotulo}</h3>`;
+      rotuloAnterior = rotulo;
+      return divisoria + renderizarItem(item);
+    })
+    .join("");
+}
+
 function pedirValor(mensagem: string): Promise<number | null> {
   return new Promise((resolve) => {
     const overlay = document.createElement("div");
@@ -761,10 +787,9 @@ function renderOS() {
   })
 
   const linhas = ordensFiltradas.length
-    ? ordensFiltradas
-        .map((os) => {
-          const proximo = proximoStatus[os.status];
-          return `
+    ? comDivisoriasDeData(ordensFiltradas, (os) => {
+        const proximo = proximoStatus[os.status];
+        return `
         <div class="card-item">
           <div class="card-item-main">
             <strong>${os.nome_cliente} — ${os.marca} ${os.modelo}</strong>
@@ -779,8 +804,7 @@ function renderOS() {
           </div>
         </div>
       `;
-        })
-        .join("")
+      })
     : estado.ordens.length
       ? '<p class="empty-state">Nenhuma OS encontrada para esse filtro.</p>'
       : '<p class="empty-state">Nenhuma ordem de serviço aberta ainda.</p>';
@@ -1072,7 +1096,18 @@ function renderizarListaOSFinalizadas(ordens: ordem_servico_detalhada[], termoDe
   const lista = document.getElementById("lista-os-finalizadas") as HTMLUListElement;
   lista.textContent = "";
 
+  let rotuloAnterior: string | null = null;
+
   ordens.forEach((os) => {
+    const rotulo = rotuloDataAbertura(os.data_abertura);
+    if (rotulo !== rotuloAnterior) {
+      const divisoria = document.createElement("li");
+      divisoria.className = "date-divider";
+      divisoria.textContent = rotulo;
+      lista.appendChild(divisoria);
+      rotuloAnterior = rotulo;
+    }
+
     const item = document.createElement("li");
 
     const cliente = document.createElement("strong");
@@ -1143,7 +1178,9 @@ function iniciarExercicioOSFinalizadas() {
 
   campoFiltro.addEventListener("input", () => {
     const termo = normalizarTexto(campoFiltro.value.trim());
-    const itens = document.querySelectorAll<HTMLLIElement>("#lista-os-finalizadas li");
+    const itens = document.querySelectorAll<HTMLLIElement>(
+      "#lista-os-finalizadas li:not(.date-divider)",
+    );
     itens.forEach((item) => {
       const visivel = normalizarTexto(item.textContent ?? "").includes(termo);
       item.hidden = !visivel;
