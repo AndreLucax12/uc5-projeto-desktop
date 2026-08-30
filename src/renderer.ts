@@ -10,7 +10,7 @@ import type {
 declare global {
   interface Window {
     api: {
-      ping: () => Promise<string>;
+      ping: () => Promise<RespostaIPC<string>>;
       clientes: {
         listar: () => Promise<RespostaIPC<clientes[]>>;
         criar: (cliente: Omit<clientes, "id">) => Promise<RespostaIPC<clientes>>;
@@ -29,7 +29,7 @@ declare global {
           equipamento: Omit<equipamentos, "id" | "id_cliente">,
         ) => Promise<RespostaIPC<equipamentos>>;
         excluir: (id: number) => Promise<RespostaIPC<void>>;
-        listarMarcasSuportadas: () => Promise<marca_suportada[]>;
+        listarMarcasSuportadas: () => Promise<RespostaIPC<marca_suportada[]>>;
       };
 
       os: {
@@ -293,7 +293,7 @@ async function carregarDados() {
     estado.ordens = [];
     estado.erroOS = ordensResp.erro ?? "Não foi possível carregar as ordens de serviço.";
   }
-  estado.marcasSuportadas = marcasResp;
+  estado.marcasSuportadas = marcasResp.sucesso ? (marcasResp.dados ?? []) : [];
 }
 
 let temporizadorErroClientes: ReturnType<typeof setTimeout> | null = null;

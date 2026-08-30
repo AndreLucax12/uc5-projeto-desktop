@@ -1,0 +1,126 @@
+HISTORICO DE ERROS - TechOS
+Registro dos problemas reais encontrados durante a construcao do app, com causa
+e correcao, para consulta rapida em manutencoes futuras. Atualizar sempre que
+um bug novo (nao so um ajuste de funcionalidade) for encontrado e corrigido.
+
+================================================================================
+[v2.0.19] window.prompt() nao funciona no Electron
+Sintoma: ao clicar em "Marcar como finalizada", nenhum dialogo aparecia para
+pedir o valor da OS; o codigo seguia como se o usuario tivesse cancelado.
+Causa: Electron nao implementa window.prompt() — a chamada retorna null imediatamente, 
+sem mostrar nada.
+Correcao: modal proprio feito em HTML/CSS (funcao pedirValor em renderer.ts), 
+sem depender de dialogo nativo do navegador.
+
+================================================================================
+[v2.0.20] window.confirm()/window.alert() travavam a interface inteira
+Sintoma: apos confirmar uma exclusao (ou ver um alerta de erro), o app as vezes
+ficava com a janela travada — nenhum campo, botao ou aba respondia mais.
+Causa: window.confirm()/window.alert() sao chamadas SINCRONAS e bloqueantes;
+elas param a thread inteira do Renderer ate o dialogo ser fechado, e no
+Electron esses dialogos nativos podem nem aparecer de forma confiavel.
+Correcao: modais proprios (confirmarAcao) substituindo os 4 usos de
+confirm/alert no projeto (excluir cliente, equipamento, OS).
+
+================================================================================
+[v2.0.19] Falha no carregamento inicial travava toda a interacao
+Sintoma: com o banco fora do ar, o app abria em branco e nenhum botao/campo
+funcionava — inclusive o formulario de busca "recarregava a pagina" ao
+submeter, como se nenhum JavaScript estivesse rodando.
+Causa: carregarDados() rejeitava sem try/catch dentro de iniciar(), entao a
+funcao abortava ANTES de chegar nas linhas que registram os listeners dos
+formularios (inclusive o preventDefault do submit).
+Correcao: try/catch em torno de carregarDados() em iniciar(), com aviso visivel
+na tela; o registro dos listeners passou a rodar sempre, mesmo com o banco
+fora do ar.
+
+================================================================================
+[v2.0.19] package.json com "name" invalido quebrava o empacotamento
+Sintoma: npm run build parava no passo do electron-builder com
+"Invalid name: ...".
+Causa: o campo "name" do package.json tinha espaco, maiuscula e acento (nome
+de exibicao, nao de pacote) — o electron-builder exige um nome de pacote
+valido (minusculo, sem espaco/acento) nesse campo.
+Correcao: "name" virou um identificador valido (techos-assistencia-tecnica); o
+nome bonito para o usuario final foi para "productName", que aceita qualquer
+texto.
+
+================================================================================
+[v2.0.20 / v3.0.22 a v3.0.24] Erros crus do Postgres apareciam direto na tela
+Sintoma: mensagens tecnicas em ingles (ex: "password authentication failed for
+user ...") apareciam para o usuario final em vez de uma mensagem compreensivel
+— inclusive em casos onde o problema real era falta de conexao, nao dado
+invalido.
+Causa: os handlers do main.ts deixavam a excecao do driver "pg" subir crua ate
+o Renderer, sem nenhum tratamento centralizado.
+Correcao: helper comTratamentoDeErro() no main.ts, usado em todos os canais.
+Ele distingue: erro de validacao esperado (classe ErroDeValidacao, mostra a
+mensagem como esta), violacao de chave estrangeira (codigo Postgres 23001,
+mensagem amigavel de "existem registros vinculados"), e qualquer outra coisa
+(mensagem generica de "sem conexao com o banco").
+
+================================================================================
+[v3.0.24] Busca de OS finalizadas nao considerava acento
+Sintoma: buscar por "e" nao encontrava um cliente chamado "Andre" (com acento
+no nome real, "André"), so quem tinha "e" sem acento no nome.
+Causa: a comparacao de texto usava so toLowerCase(), que nao remove acento.
+Correcao: normalizacao de texto (NFD + remocao de diacriticos) aplicada em
+todas as comparacoes de busca/filtro/destaque, caractere a caractere (pra nao
+desalinhar os indices usados no destaque do termo buscado).
+
+================================================================================
+[v3.0.24] Mensagem de erro persistente na tela mesmo com o problema resolvido
+Sintoma: depois de um erro (ex: tentar excluir cliente com equipamento
+vinculado), a mensagem ficava na tela indefinidamente, mesmo navegando entre
+abas e voltando.
+Causa: a mensagem de erro so era limpa quando uma nova acao daquela mesma
+entidade tinha sucesso; trocar de aba so escondia a secao via CSS, sem
+re-renderizar nem limpar o estado.
+Correcao: mensagens de erro (clientes, equipamentos, OS) passaram a se
+auto-limpar depois de alguns segundos (setTimeout com renderizacao de novo).
+
+================================================================================
+[v3.0.24] Validacao de cadastro de cliente incompleta
+Sintoma: dava para cadastrar cliente com numero no nome, e com telefone
+incompleto (ex: so "(85" ja passava, por causa da mascara de formatacao que
+sempre preenche o "(" mesmo sem nenhum digito).
+Causa: a validacao so checava se os campos nao estavam vazios, nao se o
+conteudo fazia sentido.
+Correcao: validacao de nome (sem numero) e de telefone (10 ou 11 digitos
+depois de remover a mascara) no Renderer (feedback imediato) e no Main
+(validarDadosCliente, nunca confiar so no lado da tela).
+
+================================================================================
+[v3.0.26] Tela branca no instalador (app empacotado)
+Sintoma: instalando o .exe numa pasta/maquina limpa, o app abria só com o menu
+- a area de conteudo ficava totalmente branca.
+Causa: mainWindow.loadFile() nao conseguia carregar o dist/index.html de
+dentro do app.asar empacotado (erro ERR_NOT_ALLOWED_TO_LOAD_LOCAL_RESOURCE) —
+incompatibilidade conhecida do loadFile com caminhos dentro de asar no
+Windows.
+Correcao: troca de loadFile() por loadURL(pathToFileURL(...).toString()).
+
+================================================================================
+[v3.0.26] .env (com a senha do banco) empacotado dentro do instalador
+Sintoma: o .asar gerado continha o .env de verdade, o codigo-fonte TypeScript
+inteiro e nao continha o dist/index.html compilado (por isso a tela branca
+acima acontecia junto).
+Causa: o package.json nao tinha um campo "files" configurado no bloco "build",
+entao o electron-builder usou um padrao amplo demais, pegando arquivos que
+nunca deveriam ir pro instalador.
+Correcao: "files" explicito no package.json, listando so dist/index.html,
+dist/assets/**/*, dist-electron/**/* e package.json. Em producao, a leitura
+do .env passou a procurar do lado do executavel instalado (nao mais do
+diretorio de trabalho, que é imprevisivel para um app com atalho).
+
+================================================================================
+[v3.0.27] Cruzamento de tabelas feito no Renderer em vez de SQL
+Sintoma: nao era bem um "bug" visivel para o usuario, mas uma violacao do
+principio "Renderer nao conhece o banco" — o nome do cliente de cada OS era
+descoberto no JavaScript (estado.equipamentos.find(...)), nao numa query.
+Causa: os:listar so trazia a ordem de servico crua, sem juntar com
+equipamentos/clientes.
+Correcao: JOIN de verdade no SQL (ordens_servico + equipamentos + clientes),
+com aliases explicitos em cada coluna selecionada e INNER JOIN (justificado:
+as duas colunas de ligacao sao NOT NULL no schema, entao nunca existe OS sem
+equipamento nem equipamento sem cliente).

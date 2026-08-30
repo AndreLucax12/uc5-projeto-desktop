@@ -1,6 +1,6 @@
 {
   "name": "techos-assistencia-tecnica",
-  "version": "4.0.32",
+  "version": "4.0.33",
   "main": "dist-electron/main.js",
   "description": "Projeto de referência: exercícios IPC com Electron + Vite + TypeScript",
   "author": "Andréllv <andrelucaw8@gmail.com>",
@@ -25,20 +25,17 @@
     "vite-plugin-electron-renderer": "^1.0.0"
   },
   "build": {
-    "appId": "io.github.thalsime.uc5desktop",
+    "appId": "io.github.andrelucax12.techos",
     "productName": "TechOS - Gerenciador de Assistência Técnica",
+    "directories": {
+      "output": "release"
+    },
     "files": [
       "dist/index.html",
       "dist/assets/**/*",
       "dist-electron/**/*",
       "package.json",
       "!**/.env*"
-    ],
-    "extraFiles": [
-      {
-        "from": ".env",
-        "to": ".env"
-      }
     ],
     "win": {
       "target": "nsis",

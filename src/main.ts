@@ -53,9 +53,9 @@ app.on("window-all-closed", () => {
 });
 
 // Canal de teste do boilerplate
-ipcMain.handle("canal-ping", async () => {
-  return "pong do Processo Main!";
-});
+ipcMain.handle("canal-ping", async () =>
+  comTratamentoDeErro(async () => "pong do Processo Main!"),
+);
 
 class ErroDeValidacao extends Error {}
 
@@ -232,9 +232,8 @@ const marcasSuportadas: marca_suportada[] = [
   { marca: "LG", garantiaMeses: 6 },
 ];
 
-ipcMain.handle(
-  "equipamentos:listar-marcas-suportadas",
-  async () => marcasSuportadas,
+ipcMain.handle("equipamentos:listar-marcas-suportadas", async () =>
+  comTratamentoDeErro(async () => marcasSuportadas),
 );
 
 ipcMain.handle("os:listar", async (_event, termo?: string) =>

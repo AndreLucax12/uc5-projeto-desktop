@@ -9,7 +9,7 @@ import type {
 } from "./types";
 
 contextBridge.exposeInMainWorld("api", {
-  ping: () => ipcRenderer.invoke("canal-ping"),
+  ping: (): Promise<RespostaIPC<string>> => ipcRenderer.invoke("canal-ping"),
   clientes: {
     listar: (): Promise<RespostaIPC<clientes[]>> =>
       ipcRenderer.invoke("clientes:listar"),
@@ -37,7 +37,7 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke("equipamentos:atualizar", id, equipamento),
     excluir: (id: number): Promise<RespostaIPC<void>> =>
       ipcRenderer.invoke("equipamentos:excluir", id),
-    listarMarcasSuportadas: (): Promise<marca_suportada[]> =>
+    listarMarcasSuportadas: (): Promise<RespostaIPC<marca_suportada[]>> =>
       ipcRenderer.invoke("equipamentos:listar-marcas-suportadas"),
   },
   os: {

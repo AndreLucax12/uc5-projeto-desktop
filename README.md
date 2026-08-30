@@ -35,7 +35,7 @@ serviço (OS), e consultar o faturamento com base nas OS finalizadas.
 Três tabelas relacionadas por chave estrangeira (`REFERENCES ... ON DELETE
 RESTRICT`, para nunca perder histórico apagando um cliente ou equipamento que
 ainda tem registros vinculados). O schema completo está versionado em
-[`schema.sql`](schema.sql) — rode esse arquivo no seu banco antes de usar o
+[`sql/schema.sql`](sql/schema.sql) — rode esse arquivo no seu banco antes de usar o
 app pela primeira vez.
 
 A listagem de ordens de serviço faz um `JOIN` real entre as três tabelas
@@ -58,7 +58,7 @@ Neon:
 DATABASE_URL=postgresql://usuario:senha@host/banco?sslmode=require
 ```
 
-Rode [`schema.sql`](schema.sql) nesse banco (pelo DBeaver, pelo SQL Editor do
+Rode [`sql/schema.sql`](sql/schema.sql) nesse banco (pelo DBeaver, pelo SQL Editor do
 Neon, ou por qualquer cliente Postgres), depois:
 
 ```bash
@@ -71,7 +71,7 @@ npm run dev
 npm run build
 ```
 
-Gera o instalador NSIS em `dist/TechOS - Gerenciador de Assistência Técnica
+Gera o instalador NSIS em `release/TechOS - Gerenciador de Assistência Técnica
 Setup <versão>.exe`. O instalador **não** inclui o `.env` (por segurança) —
 depois de instalar, é necessário colocar um arquivo `.env` com a
 `DATABASE_URL` na mesma pasta onde o app foi instalado para ele conseguir se
