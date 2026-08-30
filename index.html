@@ -12,7 +12,143 @@
     />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <header class="app-header">
+        <svg class="logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 3h8a1 1 0 0 1 1 1v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M9 3h6v2H9z" fill="currentColor"/>
+          <circle cx="12" cy="13" r="3" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M12 9v1M12 16v1M8 13H7M17 13h-1M9.5 10.5l-.7-.7M15.2 16.2l-.7-.7M9.5 15.5l-.7.7M15.2 9.8l-.7.7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <h1>TechOS</h1>
+          <span>Gerenciamento de Assistência Técnica</span>
+        </div>
+      </header>
+
+      <nav class="tabs">
+        <button class="tab-button" data-tab="clientes">Clientes</button>
+        <button class="tab-button" data-tab="equipamentos">Equipamentos</button>
+        <button class="tab-button" data-tab="os">Ordens de Serviço</button>
+        <button class="tab-button" data-tab="relatorio">Relatório</button>
+      </nav>
+
+      <section class="section" id="secao-clientes">
+        <h2 class="section-title">Clientes</h2>
+        <p id="erro-clientes" class="modal-erro"></p>
+        <div class="card-list" id="lista-clientes"></div>
+        <div class="card">
+          <h2 class="section-title">Novo cliente</h2>
+          <form id="form-cliente">
+            <div class="form-grid">
+              <label>Nome
+                <input type="text" name="nome" required />
+              </label>
+              <label>Telefone
+                <input type="text" name="telefone" required />
+              </label>
+            </div>
+            <button type="submit">Cadastrar</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="section" id="secao-equipamentos">
+        <h2 class="section-title">Equipamentos</h2>
+        <p id="erro-equipamentos" class="modal-erro"></p>
+        <div class="card">
+          <label>Cliente
+            <select id="select-cliente-equipamentos">
+              <option value="">Selecione um cliente</option>
+            </select>
+          </label>
+        </div>
+        <div class="card-list" id="lista-equipamentos"></div>
+        <div class="card">
+          <h2 class="section-title">Novo equipamento</h2>
+          <form id="form-equipamento">
+            <div class="form-grid">
+              <label>Marca
+                <input type="text" name="marca" required />
+              </label>
+              <label>Modelo
+                <input type="text" name="modelo" required />
+              </label>
+            </div>
+            <button type="submit" id="botao-cadastrar-equipamento" disabled>Cadastrar</button>
+          </form>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Marcas atendidas</h2>
+          <div class="card-list" id="lista-marcas-suportadas"></div>
+        </div>
+      </section>
+
+      <section class="section" id="secao-os">
+        <p id="erro-os" class="modal-erro"></p>
+        <h2 class="section-title">Abrir nova OS</h2>
+        <div class="card">
+          <form id="form-os">
+            <div class="form-grid">
+              <label>Cliente
+                <select id="select-cliente-os">
+                  <option value="">Selecione um cliente</option>
+                </select>
+              </label>
+              <label>Equipamento
+                <select name="id_equipamento" id="select-equipamento-os" disabled>
+                  <option value="">Selecione um equipamento</option>
+                </select>
+              </label>
+            </div>
+            <label>Descrição do defeito
+              <textarea name="descricao_defeito" required></textarea>
+            </label>
+            <button type="submit">Abrir OS</button>
+          </form>
+        </div>
+        <h2 class="section-title">Ordens de serviço</h2>
+        <div class="card">
+          <div class="form-grid">
+            <label>Filtrar por cliente
+              <select id="filtro-cliente-os">
+                <option value="">Todos os clientes</option>
+              </select>
+            </label>
+            <label>Filtrar por status
+              <select id="filtro-status-os">
+                <option value="todas">Todos os status</option>
+                <option value="aberta">Aberta</option>
+                <option value="em andamento">Em andamento</option>
+                <option value="finalizada">Finalizada</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="card-list" id="lista-os"></div>
+      </section>
+
+      <section class="section" id="secao-relatorio">
+        <h2 class="section-title">Faturamento</h2>
+        <div class="card">
+          <div class="form-grid">
+            <label>De
+              <input type="date" id="filtro-relatorio-inicio" />
+            </label>
+            <label>Até
+              <input type="date" id="filtro-relatorio-fim" />
+            </label>
+          </div>
+          <button type="button" class="secondary" id="botao-limpar-filtro-relatorio">Limpar período</button>
+        </div>
+        <p id="erro-relatorio" class="modal-erro"></p>
+        <div class="stat-card">
+          <p class="label">Total faturado (OS finalizadas)</p>
+          <p class="valor" id="valor-faturamento">carregando...</p>
+          <button class="secondary" id="botao-atualizar-relatorio">Atualizar</button>
+        </div>
+      </section>
+    </div>
 
     <section id="secao-relatorio-exercicio" hidden aria-label="Busca de ordens de serviço finalizadas">
       <h2>OS finalizadas (busca)</h2>

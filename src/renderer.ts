@@ -120,43 +120,83 @@ function rotuloDataAbertura(dataAbertura: string): string {
 
 function comDivisoriasDeData<T extends { data_abertura: string }>(
   itens: T[],
-  renderizarItem: (item: T) => string,
-): string {
+  renderizarItem: (item: T) => HTMLElement,
+): HTMLElement[] {
   let rotuloAnterior: string | null = null;
-  return itens
-    .map((item) => {
-      const rotulo = rotuloDataAbertura(item.data_abertura);
-      const divisoria =
-        rotulo === rotuloAnterior
-          ? ""
-          : `<h3 class="date-divider">${rotulo}</h3>`;
+  const nos: HTMLElement[] = [];
+  itens.forEach((item) => {
+    const rotulo = rotuloDataAbertura(item.data_abertura);
+    if (rotulo !== rotuloAnterior) {
+      nos.push(criarElemento("h3", { classe: "date-divider", texto: rotulo }));
       rotuloAnterior = rotulo;
-      return divisoria + renderizarItem(item);
-    })
-    .join("");
+    }
+    nos.push(renderizarItem(item));
+  });
+  return nos;
+}
+
+function criarElemento<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  opcoes?: {
+    classe?: string;
+    texto?: string;
+    atributos?: Record<string, string>;
+    filhos?: (Node | null)[];
+  },
+): HTMLElementTagNameMap[K] {
+  const elemento = document.createElement(tag);
+  if (opcoes?.classe) elemento.className = opcoes.classe;
+  if (opcoes?.texto !== undefined) elemento.textContent = opcoes.texto;
+  if (opcoes?.atributos) {
+    for (const [chave, valor] of Object.entries(opcoes.atributos)) {
+      elemento.setAttribute(chave, valor);
+    }
+  }
+  if (opcoes?.filhos) {
+    for (const filho of opcoes.filhos) {
+      if (filho) elemento.appendChild(filho);
+    }
+  }
+  return elemento;
 }
 
 function pedirValor(mensagem: string): Promise<number | null> {
   return new Promise((resolve) => {
-    const overlay = document.createElement("div");
-    overlay.className = "modal-overlay";
-    overlay.innerHTML = `
-      <div class="modal-card">
-        <p>${mensagem}</p>
-        <input type="number" id="modal-valor-input" step="0.01" min="0" value="0" />
-        <p class="modal-erro" id="modal-valor-erro"></p>
-        <div class="modal-actions">
-          <button type="button" class="secondary" id="modal-cancelar">Cancelar</button>
-          <button type="button" id="modal-confirmar">Confirmar</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
+    const input = criarElemento("input", {
+      atributos: { type: "number", step: "0.01", min: "0" },
+    });
+    input.value = "0";
 
-    const input = overlay.querySelector(
-      "#modal-valor-input",
-    ) as HTMLInputElement;
-    const erro = overlay.querySelector("#modal-valor-erro") as HTMLElement;
+    const erro = criarElemento("p", { classe: "modal-erro" });
+
+    const botaoCancelar = criarElemento("button", {
+      classe: "secondary",
+      texto: "Cancelar",
+      atributos: { type: "button" },
+    });
+    const botaoConfirmar = criarElemento("button", {
+      texto: "Confirmar",
+      atributos: { type: "button" },
+    });
+
+    const overlay = criarElemento("div", {
+      classe: "modal-overlay",
+      filhos: [
+        criarElemento("div", {
+          classe: "modal-card",
+          filhos: [
+            criarElemento("p", { texto: mensagem }),
+            input,
+            erro,
+            criarElemento("div", {
+              classe: "modal-actions",
+              filhos: [botaoCancelar, botaoConfirmar],
+            }),
+          ],
+        }),
+      ],
+    });
+    document.body.appendChild(overlay);
     input.focus();
     input.select();
 
@@ -165,10 +205,8 @@ function pedirValor(mensagem: string): Promise<number | null> {
       resolve(resultado);
     };
 
-    overlay
-      .querySelector("#modal-cancelar")!
-      .addEventListener("click", () => fechar(null));
-    overlay.querySelector("#modal-confirmar")!.addEventListener("click", () => {
+    botaoCancelar.addEventListener("click", () => fechar(null));
+    botaoConfirmar.addEventListener("click", () => {
       const valor = Number(input.value);
       if (Number.isNaN(valor) || valor < 0) {
         erro.textContent = "Digite um valor válido.";
@@ -181,17 +219,31 @@ function pedirValor(mensagem: string): Promise<number | null> {
 
 function confirmarAcao(mensagem: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const overlay = document.createElement("div");
-    overlay.className = "modal-overlay";
-    overlay.innerHTML = `
-      <div class="modal-card">
-        <p>${mensagem}</p>
-        <div class="modal-actions">
-          <button type="button" class="secondary" id="modal-confirmar-cancelar">Cancelar</button>
-          <button type="button" id="modal-confirmar-ok">Confirmar</button>
-        </div>
-      </div>
-    `;
+    const botaoCancelar = criarElemento("button", {
+      classe: "secondary",
+      texto: "Cancelar",
+      atributos: { type: "button" },
+    });
+    const botaoConfirmar = criarElemento("button", {
+      texto: "Confirmar",
+      atributos: { type: "button" },
+    });
+
+    const overlay = criarElemento("div", {
+      classe: "modal-overlay",
+      filhos: [
+        criarElemento("div", {
+          classe: "modal-card",
+          filhos: [
+            criarElemento("p", { texto: mensagem }),
+            criarElemento("div", {
+              classe: "modal-actions",
+              filhos: [botaoCancelar, botaoConfirmar],
+            }),
+          ],
+        }),
+      ],
+    });
     document.body.appendChild(overlay);
 
     const fechar = (resultado: boolean) => {
@@ -199,42 +251,12 @@ function confirmarAcao(mensagem: string): Promise<boolean> {
       resolve(resultado);
     };
 
-    overlay
-      .querySelector("#modal-confirmar-cancelar")!
-      .addEventListener("click", () => fechar(false));
-    overlay
-      .querySelector("#modal-confirmar-ok")!
-      .addEventListener("click", () => fechar(true));
+    botaoCancelar.addEventListener("click", () => fechar(false));
+    botaoConfirmar.addEventListener("click", () => fechar(true));
   });
 }
 
-function montarCasca() {
-  const appElement = document.getElementById("app") as HTMLDivElement;
-  appElement.innerHTML = `
-    <header class="app-header">
-      <svg class="logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M8 3h8a1 1 0 0 1 1 1v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M9 3h6v2H9z" fill="currentColor"/>
-        <circle cx="12" cy="13" r="3" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M12 9v1M12 16v1M8 13H7M17 13h-1M9.5 10.5l-.7-.7M15.2 16.2l-.7-.7M9.5 15.5l-.7.7M15.2 9.8l-.7.7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-      </svg>
-      <div>
-        <h1>TechOS</h1>
-        <span>Gerenciamento de Assistência Técnica</span>
-      </div>
-    </header>
-    <nav class="tabs">
-      <button class="tab-button" data-tab="clientes">Clientes</button>
-      <button class="tab-button" data-tab="equipamentos">Equipamentos</button>
-      <button class="tab-button" data-tab="os">Ordens de Serviço</button>
-      <button class="tab-button" data-tab="relatorio">Relatório</button>
-    </nav>
-    <section class="section" id="secao-clientes"></section>
-    <section class="section" id="secao-equipamentos"></section>
-    <section class="section" id="secao-os"></section>
-    <section class="section" id="secao-relatorio"></section>
-  `;
-
+function iniciarTabs() {
   document
     .querySelectorAll<HTMLButtonElement>(".tab-button")
     .forEach((botao) => {
@@ -244,6 +266,7 @@ function montarCasca() {
       });
     });
 }
+
 function atualizarAbaAtiva() {
   document
     .querySelectorAll<HTMLButtonElement>(".tab-button")
@@ -330,76 +353,156 @@ async function recarregarClientes() {
   }
 }
 
-function renderClientes() {
-  const secao = document.getElementById("secao-clientes") as HTMLElement;
-  const linhas = estado.clientes.length
-    ? estado.clientes
-        .map((c) => {
-          if (estado.clienteEditando === c.id) {
-            return `
-        <div class="card-item">
-          <form class="form-editar-cliente" data-id="${c.id}">
-            <div class="form-grid">
-              <label>Nome
-                <input type="text" name="nome" value="${c.nome}" required />
-              </label>
-              <label>Telefone
-                <input type="text" name="telefone" value="${formatarTelefone(c.telefone)}" required />
-              </label>
-            </div>
-            <div class="modal-actions">
-              <button type="button" class="secondary" data-cancelar-edicao="${c.id}">Cancelar</button>
-              <button type="submit">Salvar</button>
-            </div>
-          </form>
-        </div>
-      `;
-          }
-          return `
-        <div class="card-item">
-          <div class="card-item-main">
-            <strong>${c.nome}</strong>
-            <small>${formatarTelefone(c.telefone)}</small>
-          </div>
-          <div class="modal-actions">
-            <button type="button" class="secondary" data-editar-cliente="${c.id}">Editar</button>
-            <button type="button" class="btn-excluir" data-excluir-cliente="${c.id}">Excluir</button>
-          </div>
-        </div>
-      `;
-        })
-        .join("")
-    : '<p class="empty-state">Nenhum cliente cadastrado ainda.</p>';
+function criarCardCliente(c: clientes): HTMLElement {
+  if (estado.clienteEditando === c.id) {
+    const inputNome = criarElemento("input", {
+      atributos: { type: "text", name: "nome", required: "" },
+    });
+    inputNome.value = c.nome;
 
-  secao.innerHTML = `
-    <h2 class="section-title">Clientes</h2>
-    <p id="erro-clientes" class="modal-erro">${estado.erroClientes ?? ""}</p>
-    <div class="card-list">${linhas}</div>
-    <div class="card">
-      <h2 class="section-title">Novo cliente</h2>
-      <form id="form-cliente">
-        <div class="form-grid">
-          <label>Nome
-            <input type="text" name="nome" required />
-          </label>
-          <label>Telefone
-            <input type="text" name="telefone" required />
-          </label>
-        </div>
-        <button type="submit">Cadastrar</button>
-      </form>
-    </div>
-  `;
-
-  secao
-    .querySelectorAll<HTMLInputElement>('input[name="telefone"]')
-    .forEach((input) => {
-      input.addEventListener("input", () => {
-        input.value = formatarTelefone(input.value);
-      });
+    const inputTelefone = criarElemento("input", {
+      atributos: { type: "text", name: "telefone", required: "" },
+    });
+    inputTelefone.value = formatarTelefone(c.telefone);
+    inputTelefone.addEventListener("input", () => {
+      inputTelefone.value = formatarTelefone(inputTelefone.value);
     });
 
+    const botaoCancelar = criarElemento("button", {
+      classe: "secondary",
+      texto: "Cancelar",
+      atributos: { type: "button" },
+    });
+    botaoCancelar.addEventListener("click", () => {
+      estado.clienteEditando = null;
+      renderClientes();
+    });
+
+    const form = criarElemento("form", {
+      classe: "form-editar-cliente",
+      filhos: [
+        criarElemento("div", {
+          classe: "form-grid",
+          filhos: [
+            criarElemento("label", { texto: "Nome", filhos: [inputNome] }),
+            criarElemento("label", {
+              texto: "Telefone",
+              filhos: [inputTelefone],
+            }),
+          ],
+        }),
+        criarElemento("div", {
+          classe: "modal-actions",
+          filhos: [
+            botaoCancelar,
+            criarElemento("button", { texto: "Salvar", atributos: { type: "submit" } }),
+          ],
+        }),
+      ],
+    });
+
+    form.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const nome = inputNome.value.trim();
+      const telefone = inputTelefone.value.trim();
+      if (!nome || !telefone) return;
+      if (/\d/.test(nome)) {
+        mostrarErroClientes("O nome do cliente não pode conter números.");
+        return;
+      }
+      if (!telefoneCompleto(telefone)) {
+        mostrarErroClientes("Telefone incompleto. Digite o DDD e o número completo.");
+        return;
+      }
+      const resposta = await window.api.clientes.atualizar(c.id, { nome, telefone });
+      if (!resposta.sucesso) {
+        mostrarErroClientes(resposta.erro ?? "Não foi possível salvar o cliente.");
+        return;
+      }
+      estado.clienteEditando = null;
+      await recarregarClientes();
+      renderClientes();
+      renderEquipamentos();
+      renderOS();
+    });
+
+    return criarElemento("div", { classe: "card-item", filhos: [form] });
+  }
+
+  const botaoEditar = criarElemento("button", {
+    classe: "secondary",
+    texto: "Editar",
+    atributos: { type: "button" },
+  });
+  botaoEditar.addEventListener("click", () => {
+    estado.clienteEditando = c.id;
+    renderClientes();
+  });
+
+  const botaoExcluir = criarElemento("button", {
+    classe: "btn-excluir",
+    texto: "Excluir",
+    atributos: { type: "button" },
+  });
+  botaoExcluir.addEventListener("click", async () => {
+    const confirmou = await confirmarAcao(
+      `Excluir o cliente "${c.nome}"? Essa ação não pode ser desfeita.`,
+    );
+    if (!confirmou) return;
+    const resposta = await window.api.clientes.excluir(c.id);
+    if (!resposta.sucesso) {
+      mostrarErroClientes(resposta.erro ?? "Não foi possível excluir o cliente.");
+      return;
+    }
+    await recarregarClientes();
+    renderClientes();
+  });
+
+  return criarElemento("div", {
+    classe: "card-item",
+    filhos: [
+      criarElemento("div", {
+        classe: "card-item-main",
+        filhos: [
+          criarElemento("strong", { texto: c.nome }),
+          criarElemento("small", { texto: formatarTelefone(c.telefone) }),
+        ],
+      }),
+      criarElemento("div", {
+        classe: "modal-actions",
+        filhos: [botaoEditar, botaoExcluir],
+      }),
+    ],
+  });
+}
+
+function renderClientes() {
+  const erroEl = document.getElementById("erro-clientes") as HTMLParagraphElement;
+  erroEl.textContent = estado.erroClientes ?? "";
+
+  const lista = document.getElementById("lista-clientes") as HTMLDivElement;
+  lista.replaceChildren();
+  if (estado.clientes.length === 0) {
+    lista.appendChild(
+      criarElemento("p", {
+        classe: "empty-state",
+        texto: "Nenhum cliente cadastrado ainda.",
+      }),
+    );
+  } else {
+    estado.clientes.forEach((c) => lista.appendChild(criarCardCliente(c)));
+  }
+}
+
+function iniciarFormCliente() {
   const form = document.getElementById("form-cliente") as HTMLFormElement;
+  const inputTelefone = form.querySelector(
+    'input[name="telefone"]',
+  ) as HTMLInputElement;
+  inputTelefone.addEventListener("input", () => {
+    inputTelefone.value = formatarTelefone(inputTelefone.value);
+  });
+
   form.addEventListener("submit", async (evento) => {
     evento.preventDefault();
     const dados = new FormData(form);
@@ -419,80 +522,12 @@ function renderClientes() {
       mostrarErroClientes(resposta.erro ?? "Não foi possível cadastrar o cliente.");
       return;
     }
+    form.reset();
     await recarregarClientes();
     renderClientes();
     renderEquipamentos();
     renderOS();
   });
-
-  secao
-    .querySelectorAll<HTMLButtonElement>("[data-editar-cliente]")
-    .forEach((botao) => {
-      botao.addEventListener("click", () => {
-        estado.clienteEditando = Number(botao.dataset.editarCliente);
-        renderClientes();
-      });
-    });
-
-  secao
-    .querySelectorAll<HTMLButtonElement>("[data-cancelar-edicao]")
-    .forEach((botao) => {
-      botao.addEventListener("click", () => {
-        estado.clienteEditando = null;
-        renderClientes();
-      });
-    });
-
-  secao
-    .querySelectorAll<HTMLFormElement>(".form-editar-cliente")
-    .forEach((formEdicao) => {
-      formEdicao.addEventListener("submit", async (evento) => {
-        evento.preventDefault();
-        const id = Number(formEdicao.dataset.id);
-        const dados = new FormData(formEdicao);
-        const nome = String(dados.get("nome") ?? "").trim();
-        const telefone = String(dados.get("telefone") ?? "").trim();
-        if (!nome || !telefone) return;
-        if (/\d/.test(nome)) {
-          mostrarErroClientes("O nome do cliente não pode conter números.");
-          return;
-        }
-        if (!telefoneCompleto(telefone)) {
-          mostrarErroClientes("Telefone incompleto. Digite o DDD e o número completo.");
-          return;
-        }
-        const resposta = await window.api.clientes.atualizar(id, { nome, telefone });
-        if (!resposta.sucesso) {
-          mostrarErroClientes(resposta.erro ?? "Não foi possível salvar o cliente.");
-          return;
-        }
-        estado.clienteEditando = null;
-        await recarregarClientes();
-        renderClientes();
-        renderEquipamentos();
-        renderOS();
-      });
-    });
-
-  secao
-    .querySelectorAll<HTMLButtonElement>("[data-excluir-cliente]")
-    .forEach((botao) => {
-      botao.addEventListener("click", async () => {
-        const id = Number(botao.dataset.excluirCliente);
-        const cliente = estado.clientes.find((c) => c.id === id);
-        const confirmou = await confirmarAcao(
-          `Excluir o cliente "${cliente?.nome ?? ""}"? Essa ação não pode ser desfeita.`,
-        );
-        if (!confirmou) return;
-        const resposta = await window.api.clientes.excluir(id);
-        if (!resposta.sucesso) {
-          mostrarErroClientes(resposta.erro ?? "Não foi possível excluir o cliente.");
-          return;
-        }
-        await recarregarClientes();
-        renderClientes();
-      });
-    });
 }
 
 let temporizadorErroEquipamentos: ReturnType<typeof setTimeout> | null = null;
@@ -525,14 +560,130 @@ async function recarregarEquipamentos() {
   }
 }
 
+function criarCardEquipamento(e: equipamentos): HTMLElement {
+  if (estado.equipamentoEditando === e.id) {
+    const inputMarca = criarElemento("input", {
+      atributos: { type: "text", name: "marca", required: "" },
+    });
+    inputMarca.value = e.marca;
+
+    const inputModelo = criarElemento("input", {
+      atributos: { type: "text", name: "modelo", required: "" },
+    });
+    inputModelo.value = e.modelo;
+
+    const botaoCancelar = criarElemento("button", {
+      classe: "secondary",
+      texto: "Cancelar",
+      atributos: { type: "button" },
+    });
+    botaoCancelar.addEventListener("click", () => {
+      estado.equipamentoEditando = null;
+      renderEquipamentos();
+    });
+
+    const form = criarElemento("form", {
+      classe: "form-editar-equipamento",
+      filhos: [
+        criarElemento("div", {
+          classe: "form-grid",
+          filhos: [
+            criarElemento("label", { texto: "Marca", filhos: [inputMarca] }),
+            criarElemento("label", { texto: "Modelo", filhos: [inputModelo] }),
+          ],
+        }),
+        criarElemento("div", {
+          classe: "modal-actions",
+          filhos: [
+            botaoCancelar,
+            criarElemento("button", { texto: "Salvar", atributos: { type: "submit" } }),
+          ],
+        }),
+      ],
+    });
+
+    form.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const marca = inputMarca.value.trim();
+      const modelo = inputModelo.value.trim();
+      if (!marca || !modelo) return;
+      const resposta = await window.api.equipamentos.atualizar(e.id, { marca, modelo });
+      if (!resposta.sucesso) {
+        mostrarErroEquipamentos(resposta.erro ?? "Não foi possível salvar o equipamento.");
+        return;
+      }
+      estado.equipamentoEditando = null;
+      await recarregarEquipamentos();
+      renderEquipamentos();
+      renderOS();
+    });
+
+    return criarElemento("div", { classe: "card-item", filhos: [form] });
+  }
+
+  const botaoEditar = criarElemento("button", {
+    classe: "secondary",
+    texto: "Editar",
+    atributos: { type: "button" },
+  });
+  botaoEditar.addEventListener("click", () => {
+    estado.equipamentoEditando = e.id;
+    renderEquipamentos();
+  });
+
+  const botaoExcluir = criarElemento("button", {
+    classe: "btn-excluir",
+    texto: "Excluir",
+    atributos: { type: "button" },
+  });
+  botaoExcluir.addEventListener("click", async () => {
+    const confirmou = await confirmarAcao(
+      `Excluir o equipamento "${e.marca} ${e.modelo}"? Essa ação não pode ser desfeita.`,
+    );
+    if (!confirmou) return;
+    const resposta = await window.api.equipamentos.excluir(e.id);
+    if (!resposta.sucesso) {
+      mostrarErroEquipamentos(resposta.erro ?? "Não foi possível excluir o equipamento.");
+      return;
+    }
+    await recarregarEquipamentos();
+    renderEquipamentos();
+  });
+
+  return criarElemento("div", {
+    classe: "card-item",
+    filhos: [
+      criarElemento("div", {
+        classe: "card-item-main",
+        filhos: [
+          criarElemento("strong", { texto: `${e.marca} ${e.modelo}` }),
+          criarElemento("small", { texto: nomeCliente(e.id_cliente) }),
+        ],
+      }),
+      criarElemento("div", {
+        classe: "modal-actions",
+        filhos: [botaoEditar, botaoExcluir],
+      }),
+    ],
+  });
+}
+
 function renderEquipamentos() {
-  const secao = document.getElementById("secao-equipamentos") as HTMLElement;
-  const opcoesClientes = estado.clientes
-    .map(
-      (c) =>
-        `<option value="${c.id}" ${estado.clienteFiltroEquipamentos === c.id ? "selected" : ""}>${c.nome}</option>`,
-    )
-    .join("");
+  const erroEl = document.getElementById("erro-equipamentos") as HTMLParagraphElement;
+  erroEl.textContent = estado.erroEquipamentos ?? "";
+
+  const selectFiltro = document.getElementById(
+    "select-cliente-equipamentos",
+  ) as HTMLSelectElement;
+  selectFiltro.replaceChildren(
+    criarElemento("option", { texto: "Selecione um cliente", atributos: { value: "" } }),
+    ...estado.clientes.map((c) =>
+      criarElemento("option", { texto: c.nome, atributos: { value: String(c.id) } }),
+    ),
+  );
+  selectFiltro.value = estado.clienteFiltroEquipamentos
+    ? String(estado.clienteFiltroEquipamentos)
+    : "";
 
   const equipamentosFiltrados = estado.clienteFiltroEquipamentos
     ? estado.equipamentos.filter(
@@ -540,105 +691,55 @@ function renderEquipamentos() {
       )
     : [];
 
-  const linhas = equipamentosFiltrados.length
-    ? equipamentosFiltrados
-        .map((e) => {
-          if (estado.equipamentoEditando === e.id) {
-            return `
-        <div class="card-item">
-          <form class="form-editar-equipamento" data-id="${e.id}">
-            <div class="form-grid">
-              <label>Marca
-                <input type="text" name="marca" value="${e.marca}" required />
-              </label>
-              <label>Modelo
-                <input type="text" name="modelo" value="${e.modelo}" required />
-              </label>
-            </div>
-            <div class="modal-actions">
-              <button type="button" class="secondary" data-cancelar-edicao-equipamento="${e.id}">Cancelar</button>
-              <button type="submit">Salvar</button>
-            </div>
-          </form>
-        </div>
-      `;
-          }
-          return `
-        <div class="card-item">
-          <div class="card-item-main">
-            <strong>${e.marca} ${e.modelo}</strong>
-            <small>${nomeCliente(e.id_cliente)}</small>
-          </div>
-          <div class="modal-actions">
-            <button type="button" class="secondary" data-editar-equipamento="${e.id}">Editar</button>
-            <button type="button" class="btn-excluir" data-excluir-equipamento="${e.id}">Excluir</button>
-          </div>
-        </div>
-      `;
-        })
-        .join("")
-    : `<p class="empty-state">${
-        estado.clienteFiltroEquipamentos
+  const lista = document.getElementById("lista-equipamentos") as HTMLDivElement;
+  lista.replaceChildren();
+  if (equipamentosFiltrados.length === 0) {
+    lista.appendChild(
+      criarElemento("p", {
+        classe: "empty-state",
+        texto: estado.clienteFiltroEquipamentos
           ? "Nenhum equipamento cadastrado para este cliente."
-          : "Selecione um cliente para ver os equipamentos."
-      }</p>`;
+          : "Selecione um cliente para ver os equipamentos.",
+      }),
+    );
+  } else {
+    equipamentosFiltrados.forEach((e) =>
+      lista.appendChild(criarCardEquipamento(e)),
+    );
+  }
 
-  secao.innerHTML = `
-    <h2 class="section-title">Equipamentos</h2>
-    <p id="erro-equipamentos" class="modal-erro">${estado.erroEquipamentos ?? ""}</p>
-    <div class="card">
+  const botaoCadastrar = document.getElementById(
+    "botao-cadastrar-equipamento",
+  ) as HTMLButtonElement;
+  botaoCadastrar.disabled = !estado.clienteFiltroEquipamentos;
 
-      <label>Cliente
-        <select id="select-cliente-equipamentos">
-          <option value="">Selecione um cliente</option>
-          ${opcoesClientes}
-        </select>
-      </label>
-    </div>
-    <div class="card-list">${linhas}</div>
-    <div class="card">
-      <h2 class="section-title">Novo equipamento</h2>
-      <form id="form-equipamento">
-        <div class="form-grid">
-          <label>Marca
-            <input type="text" name="marca" required />
-          </label>
-          <label>Modelo
-            <input type="text" name="modelo" required />
-          </label>
-        </div>
-        <button type="submit" ${estado.clienteFiltroEquipamentos ? "" : "disabled"}>Cadastrar</button>
-      </form>
-    </div>
-    <div class="card">
-      <h2 class="section-title">Marcas atendidas</h2>
-      <div class="card-list">
-        ${estado.marcasSuportadas
-          .map(
-            (m) => `
-          <div class="card-item">
-            <div class="card-item-main">
-              <strong>${m.marca}</strong>
-              <small>Garantia padrão: ${m.garantiaMeses} meses</small>
-            </div>
-          </div>
-        `,
-          )
-          .join("")}
-      </div>
-    </div>
-  `;
+  const listaMarcas = document.getElementById(
+    "lista-marcas-suportadas",
+  ) as HTMLDivElement;
+  listaMarcas.replaceChildren(
+    ...estado.marcasSuportadas.map((m) =>
+      criarElemento("div", {
+        classe: "card-item",
+        filhos: [
+          criarElemento("div", {
+            classe: "card-item-main",
+            filhos: [
+              criarElemento("strong", { texto: m.marca }),
+              criarElemento("small", { texto: `Garantia padrão: ${m.garantiaMeses} meses` }),
+            ],
+          }),
+        ],
+      }),
+    ),
+  );
+}
 
+function iniciarEquipamentos() {
   const select = document.getElementById(
     "select-cliente-equipamentos",
   ) as HTMLSelectElement;
-  select.value = estado.clienteFiltroEquipamentos
-    ? String(estado.clienteFiltroEquipamentos)
-    : "";
   select.addEventListener("change", () => {
-    estado.clienteFiltroEquipamentos = select.value
-      ? Number(select.value)
-      : null;
+    estado.clienteFiltroEquipamentos = select.value ? Number(select.value) : null;
     renderEquipamentos();
   });
 
@@ -659,70 +760,11 @@ function renderEquipamentos() {
       mostrarErroEquipamentos(resposta.erro ?? "Não foi possível cadastrar o equipamento.");
       return;
     }
+    form.reset();
     await recarregarEquipamentos();
     renderEquipamentos();
     renderOS();
   });
-
-  secao
-    .querySelectorAll<HTMLButtonElement>("[data-editar-equipamento]")
-    .forEach((botao) => {
-      botao.addEventListener("click", () => {
-        estado.equipamentoEditando = Number(botao.dataset.editarEquipamento);
-        renderEquipamentos();
-      });
-    });
-
-  secao
-    .querySelectorAll<HTMLButtonElement>("[data-cancelar-edicao-equipamento]")
-    .forEach((botao) => {
-      botao.addEventListener("click", () => {
-        estado.equipamentoEditando = null;
-        renderEquipamentos();
-      });
-    });
-
-  secao
-    .querySelectorAll<HTMLFormElement>(".form-editar-equipamento")
-    .forEach((formEdicao) => {
-      formEdicao.addEventListener("submit", async (evento) => {
-        evento.preventDefault();
-        const id = Number(formEdicao.dataset.id);
-        const dados = new FormData(formEdicao);
-        const marca = String(dados.get("marca") ?? "").trim();
-        const modelo = String(dados.get("modelo") ?? "").trim();
-        if (!marca || !modelo) return;
-        const resposta = await window.api.equipamentos.atualizar(id, { marca, modelo });
-        if (!resposta.sucesso) {
-          mostrarErroEquipamentos(resposta.erro ?? "Não foi possível salvar o equipamento.");
-          return;
-        }
-        estado.equipamentoEditando = null;
-        await recarregarEquipamentos();
-        renderEquipamentos();
-        renderOS();
-      });
-    });
-
-  secao
-    .querySelectorAll<HTMLButtonElement>("[data-excluir-equipamento]")
-    .forEach((botao) => {
-      botao.addEventListener("click", async () => {
-        const id = Number(botao.dataset.excluirEquipamento);
-        const equipamento = estado.equipamentos.find((e) => e.id === id);
-        const confirmou = await confirmarAcao(
-          `Excluir o equipamento "${equipamento?.marca ?? ""} ${equipamento?.modelo ?? ""}"? Essa ação não pode ser desfeita.`,
-        );
-        if (!confirmou) return;
-        const resposta = await window.api.equipamentos.excluir(id);
-        if (!resposta.sucesso) {
-          mostrarErroEquipamentos(resposta.erro ?? "Não foi possível excluir o equipamento.");
-          return;
-        }
-        await recarregarEquipamentos();
-        renderEquipamentos();
-      });
-    });
 }
 
 let temporizadorErroOS: ReturnType<typeof setTimeout> | null = null;
@@ -753,139 +795,172 @@ async function recarregarOrdens() {
   }
 }
 
+function criarCardOS(os: ordem_servico_detalhada): HTMLElement {
+  const proximo = proximoStatus[os.status];
+
+  const botoes: HTMLElement[] = [];
+  if (proximo) {
+    const botaoAvancar = criarElemento("button", {
+      classe: "secondary",
+      texto: `Marcar como "${proximo}"`,
+      atributos: { type: "button" },
+    });
+    botaoAvancar.addEventListener("click", async () => {
+      let valor: number | undefined;
+      if (proximo === "finalizada") {
+        const resultado = await pedirValor("Valor cobrado nesta OS (R$):");
+        if (resultado === null) return;
+        valor = resultado;
+      }
+      const resposta = await window.api.os.atualizarStatus(os.id, proximo, valor);
+      if (!resposta.sucesso) {
+        mostrarErroOS(resposta.erro ?? "Não foi possível atualizar o status.");
+        return;
+      }
+      await recarregarOrdens();
+      renderOS();
+      atualizarRelatorio();
+      atualizarBuscaOSFinalizadas();
+    });
+    botoes.push(botaoAvancar);
+  }
+
+  const botaoExcluir = criarElemento("button", {
+    classe: "btn-excluir",
+    texto: "Excluir",
+    atributos: { type: "button" },
+  });
+  botaoExcluir.addEventListener("click", async () => {
+    const confirmou = await confirmarAcao(
+      "Excluir esta ordem de serviço? Essa ação não pode ser desfeita.",
+    );
+    if (!confirmou) return;
+    const resposta = await window.api.os.excluir(os.id);
+    if (!resposta.sucesso) {
+      mostrarErroOS(resposta.erro ?? "Não foi possível excluir a OS.");
+      return;
+    }
+    await recarregarOrdens();
+    renderOS();
+    atualizarRelatorio();
+    atualizarBuscaOSFinalizadas();
+  });
+  botoes.push(botaoExcluir);
+
+  return criarElemento("div", {
+    classe: "card-item",
+    filhos: [
+      criarElemento("div", {
+        classe: "card-item-main",
+        filhos: [
+          criarElemento("strong", { texto: `${os.nome_cliente} — ${os.marca} ${os.modelo}` }),
+          criarElemento("small", { texto: os.descricao_defeito }),
+        ],
+      }),
+      criarElemento("div", {
+        classe: "card-item-side",
+        filhos: [
+          criarElemento("span", { classe: classeBadge(os.status), texto: os.status }),
+          criarElemento("div", { classe: "card-item-actions", filhos: botoes }),
+        ],
+      }),
+    ],
+  });
+}
+
 function renderOS() {
-  const secao = document.getElementById("secao-os") as HTMLElement;
-
-  const opcoesClientes = estado.clientes
-    .map(
-      (c) =>
-        `<option value="${c.id}" ${estado.clienteFormOS === c.id ? "selected" : ""}>${c.nome}</option>`,
-    )
-    .join("");
-
-  const equipamentosDoCliente = estado.clienteFormOS
-    ? estado.equipamentos.filter((e) => e.id_cliente === estado.clienteFormOS)
-    : [];
-
-  const opcoesEquipamentos = equipamentosDoCliente
-    .map((e) => `<option value="${e.id}">${e.marca} ${e.modelo}</option>`)
-    .join("");
-
-  const ordensOrdenadas = [...estado.ordens].sort((a, b) => b.id - a.id);
-
-  const opcoesClientesFiltro = estado.clientes
-    .map(
-      (c) =>
-        `<option value="${c.id}" ${estado.filtroClienteOS === c.id ? "selected" : ""}>${c.nome}</option>`,
-    )
-    .join("");
-
-  const ordensFiltradas = ordensOrdenadas.filter((os) => {
-    if (estado.filtroStatusOS !== "todas" && os.status !== estado.filtroStatusOS) return false
-    if (estado.filtroClienteOS !== null && os.id_cliente !== estado.filtroClienteOS) return false
-    return true
-  })
-
-  const linhas = ordensFiltradas.length
-    ? comDivisoriasDeData(ordensFiltradas, (os) => {
-        const proximo = proximoStatus[os.status];
-        return `
-        <div class="card-item">
-          <div class="card-item-main">
-            <strong>${os.nome_cliente} — ${os.marca} ${os.modelo}</strong>
-            <small>${os.descricao_defeito}</small>
-          </div>
-          <div class="card-item-side">
-            <span class="${classeBadge(os.status)}">${os.status}</span>
-            <div class="card-item-actions">
-              ${proximo ? `<button class="secondary" data-avancar="${os.id}">Marcar como "${proximo}"</button>` : ""}
-              <button class="btn-excluir" data-excluir-os="${os.id}">Excluir</button>
-            </div>
-          </div>
-        </div>
-      `;
-      })
-    : estado.ordens.length
-      ? '<p class="empty-state">Nenhuma OS encontrada para esse filtro.</p>'
-      : '<p class="empty-state">Nenhuma ordem de serviço aberta ainda.</p>';
-
-  secao.innerHTML = `
-    <p id="erro-os" class="modal-erro">${estado.erroOS ?? ""}</p>
-    <h2 class="section-title">Abrir nova OS</h2>
-    <div class="card">
-      <form id="form-os">
-        <div class="form-grid">
-          <label>Cliente
-            <select id="select-cliente-os">
-              <option value="">Selecione um cliente</option>
-              ${opcoesClientes}
-            </select>
-          </label>
-          <label>Equipamento
-            <select name="id_equipamento" id="select-equipamento-os" ${equipamentosDoCliente.length ? "" : "disabled"}>
-              <option value="">Selecione um equipamento</option>
-              ${opcoesEquipamentos}
-            </select>
-          </label>
-        </div>
-        <label>Descrição do defeito
-          <textarea name="descricao_defeito" required></textarea>
-        </label>
-        <button type="submit">Abrir OS</button>
-      </form>
-    </div>
-    <h2 class="section-title">Ordens de serviço</h2>
-    <div class="card">
-      <div class="form-grid">
-        <label>Filtrar por cliente
-          <select id="filtro-cliente-os">
-            <option value="">Todos os clientes</option>
-            ${opcoesClientesFiltro}
-          </select>
-        </label>
-        <label>Filtrar por status
-          <select id="filtro-status-os">
-            <option value="todas">Todos os status</option>
-            <option value="aberta">Aberta</option>
-            <option value="em andamento">Em andamento</option>
-            <option value="finalizada">Finalizada</option>
-          </select>
-        </label>
-      </div>
-    </div>
-    <div class="card-list">${linhas}</div>
-  `;
+  const erroEl = document.getElementById("erro-os") as HTMLParagraphElement;
+  erroEl.textContent = estado.erroOS ?? "";
 
   const selectCliente = document.getElementById(
     "select-cliente-os",
   ) as HTMLSelectElement;
-  selectCliente.value = estado.clienteFormOS
-    ? String(estado.clienteFormOS)
-    : "";
+  selectCliente.replaceChildren(
+    criarElemento("option", { texto: "Selecione um cliente", atributos: { value: "" } }),
+    ...estado.clientes.map((c) =>
+      criarElemento("option", { texto: c.nome, atributos: { value: String(c.id) } }),
+    ),
+  );
+  selectCliente.value = estado.clienteFormOS ? String(estado.clienteFormOS) : "";
+
+  const equipamentosDoCliente = estado.clienteFormOS
+    ? estado.equipamentos.filter((e) => e.id_cliente === estado.clienteFormOS)
+    : [];
+  const selectEquipamento = document.getElementById(
+    "select-equipamento-os",
+  ) as HTMLSelectElement;
+  selectEquipamento.replaceChildren(
+    criarElemento("option", { texto: "Selecione um equipamento", atributos: { value: "" } }),
+    ...equipamentosDoCliente.map((e) =>
+      criarElemento("option", {
+        texto: `${e.marca} ${e.modelo}`,
+        atributos: { value: String(e.id) },
+      }),
+    ),
+  );
+  selectEquipamento.disabled = equipamentosDoCliente.length === 0;
+
+  const filtroCliente = document.getElementById(
+    "filtro-cliente-os",
+  ) as HTMLSelectElement;
+  filtroCliente.replaceChildren(
+    criarElemento("option", { texto: "Todos os clientes", atributos: { value: "" } }),
+    ...estado.clientes.map((c) =>
+      criarElemento("option", { texto: c.nome, atributos: { value: String(c.id) } }),
+    ),
+  );
+  filtroCliente.value = estado.filtroClienteOS ? String(estado.filtroClienteOS) : "";
+
+  const filtroStatus = document.getElementById(
+    "filtro-status-os",
+  ) as HTMLSelectElement;
+  filtroStatus.value = estado.filtroStatusOS;
+
+  const ordensOrdenadas = [...estado.ordens].sort((a, b) => b.id - a.id);
+  const ordensFiltradas = ordensOrdenadas.filter((os) => {
+    if (estado.filtroStatusOS !== "todas" && os.status !== estado.filtroStatusOS) return false;
+    if (estado.filtroClienteOS !== null && os.id_cliente !== estado.filtroClienteOS) return false;
+    return true;
+  });
+
+  const lista = document.getElementById("lista-os") as HTMLDivElement;
+  lista.replaceChildren();
+  if (ordensFiltradas.length > 0) {
+    comDivisoriasDeData(ordensFiltradas, criarCardOS).forEach((no) =>
+      lista.appendChild(no),
+    );
+  } else {
+    lista.appendChild(
+      criarElemento("p", {
+        classe: "empty-state",
+        texto: estado.ordens.length
+          ? "Nenhuma OS encontrada para esse filtro."
+          : "Nenhuma ordem de serviço aberta ainda.",
+      }),
+    );
+  }
+}
+
+function iniciarOS() {
+  const selectCliente = document.getElementById(
+    "select-cliente-os",
+  ) as HTMLSelectElement;
   selectCliente.addEventListener("change", () => {
-    estado.clienteFormOS = selectCliente.value
-      ? Number(selectCliente.value)
-      : null;
+    estado.clienteFormOS = selectCliente.value ? Number(selectCliente.value) : null;
     renderOS();
   });
 
   const filtroCliente = document.getElementById(
     "filtro-cliente-os",
   ) as HTMLSelectElement;
-  filtroCliente.value = estado.filtroClienteOS
-    ? String(estado.filtroClienteOS)
-    : "";
   filtroCliente.addEventListener("change", () => {
-    estado.filtroClienteOS = filtroCliente.value
-      ? Number(filtroCliente.value)
-      : null;
+    estado.filtroClienteOS = filtroCliente.value ? Number(filtroCliente.value) : null;
     renderOS();
   });
 
   const filtroStatus = document.getElementById(
     "filtro-status-os",
   ) as HTMLSelectElement;
-  filtroStatus.value = estado.filtroStatusOS;
   filtroStatus.addEventListener("change", () => {
     estado.filtroStatusOS = filtroStatus.value as
       | ordens_de_servico["status"]
@@ -910,113 +985,55 @@ function renderOS() {
       mostrarErroOS(resposta.erro ?? "Não foi possível abrir a OS.");
       return;
     }
+    form.reset();
     await recarregarOrdens();
     renderOS();
-    renderRelatorio();
+    atualizarRelatorio();
   });
-
-  secao
-    .querySelectorAll<HTMLButtonElement>("[data-avancar]")
-    .forEach((botao) => {
-      botao.addEventListener("click", async () => {
-        const id = Number(botao.dataset.avancar);
-        const os = estado.ordens.find((o) => o.id === id);
-        const proximo = os ? proximoStatus[os.status] : null;
-        if (!proximo) return;
-
-        let valor: number | undefined;
-        if (proximo === "finalizada") {
-          const resultado = await pedirValor("Valor cobrado nesta OS (R$):");
-          if (resultado === null) return;
-          valor = resultado;
-        }
-
-        const resposta = await window.api.os.atualizarStatus(id, proximo, valor);
-        if (!resposta.sucesso) {
-          mostrarErroOS(resposta.erro ?? "Não foi possível atualizar o status.");
-          return;
-        }
-        await recarregarOrdens();
-        renderOS();
-        renderRelatorio();
-        atualizarBuscaOSFinalizadas();
-      });
-    });
-
-  secao
-    .querySelectorAll<HTMLButtonElement>("[data-excluir-os]")
-    .forEach((botao) => {
-      botao.addEventListener("click", async () => {
-        const id = Number(botao.dataset.excluirOs);
-        const confirmou = await confirmarAcao(
-          "Excluir esta ordem de serviço? Essa ação não pode ser desfeita.",
-        );
-        if (!confirmou) return;
-        const resposta = await window.api.os.excluir(id);
-        if (!resposta.sucesso) {
-          mostrarErroOS(resposta.erro ?? "Não foi possível excluir a OS.");
-          return;
-        }
-        await recarregarOrdens();
-        renderOS();
-        renderRelatorio();
-        atualizarBuscaOSFinalizadas();
-      });
-    });
 }
 
 function renderRelatorio() {
-  const secao = document.getElementById("secao-relatorio") as HTMLElement;
-  secao.innerHTML = `
-    <h2 class="section-title">Faturamento</h2>
-    <div class="card">
-      <div class="form-grid">
-        <label>De
-          <input type="date" id="filtro-relatorio-inicio" value="${estado.filtroRelatorioInicio}" />
-        </label>
-        <label>Até
-          <input type="date" id="filtro-relatorio-fim" value="${estado.filtroRelatorioFim}" />
-        </label>
-      </div>
-      <button type="button" class="secondary" id="botao-limpar-filtro-relatorio">Limpar período</button>
-    </div>
-    <p id="erro-relatorio" class="modal-erro"></p>
-    <div class="stat-card">
-      <p class="label">Total faturado (OS finalizadas)</p>
-      <p class="valor" id="valor-faturamento">carregando...</p>
-      <button class="secondary" id="botao-atualizar-relatorio">Atualizar</button>
-    </div>
-  `;
+  const inputInicio = document.getElementById(
+    "filtro-relatorio-inicio",
+  ) as HTMLInputElement;
+  inputInicio.value = estado.filtroRelatorioInicio;
 
-  const atualizar = async () => {
-    const erro = document.getElementById("erro-relatorio") as HTMLParagraphElement;
-    const valorEl = document.getElementById("valor-faturamento") as HTMLElement;
-    erro.textContent = "";
+  const inputFim = document.getElementById(
+    "filtro-relatorio-fim",
+  ) as HTMLInputElement;
+  inputFim.value = estado.filtroRelatorioFim;
+}
 
-    const resposta = await window.api.os.relatorioFaturamento(
-      estado.filtroRelatorioInicio || undefined,
-      estado.filtroRelatorioFim || undefined,
-    );
+async function atualizarRelatorio() {
+  const erro = document.getElementById("erro-relatorio") as HTMLParagraphElement;
+  const valorEl = document.getElementById("valor-faturamento") as HTMLElement;
+  erro.textContent = "";
 
-    if (!resposta.sucesso) {
-      erro.textContent = resposta.erro ?? "Não foi possível carregar o faturamento.";
-      valorEl.textContent = "—";
-      return;
-    }
+  const resposta = await window.api.os.relatorioFaturamento(
+    estado.filtroRelatorioInicio || undefined,
+    estado.filtroRelatorioFim || undefined,
+  );
 
-    const total = resposta.dados?.total ?? 0;
-    valorEl.textContent = total.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    });
-  };
+  if (!resposta.sucesso) {
+    erro.textContent = resposta.erro ?? "Não foi possível carregar o faturamento.";
+    valorEl.textContent = "—";
+    return;
+  }
 
+  const total = resposta.dados?.total ?? 0;
+  valorEl.textContent = total.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function iniciarRelatorio() {
   const inputInicio = document.getElementById(
     "filtro-relatorio-inicio",
   ) as HTMLInputElement;
   inputInicio.addEventListener("change", () => {
     estado.filtroRelatorioInicio = inputInicio.value;
-    atualizar();
+    atualizarRelatorio();
   });
 
   const inputFim = document.getElementById(
@@ -1024,7 +1041,7 @@ function renderRelatorio() {
   ) as HTMLInputElement;
   inputFim.addEventListener("change", () => {
     estado.filtroRelatorioFim = inputFim.value;
-    atualizar();
+    atualizarRelatorio();
   });
 
   document
@@ -1033,12 +1050,12 @@ function renderRelatorio() {
       estado.filtroRelatorioInicio = "";
       estado.filtroRelatorioFim = "";
       renderRelatorio();
+      atualizarRelatorio();
     });
 
   document
     .getElementById("botao-atualizar-relatorio")
-    ?.addEventListener("click", atualizar);
-  atualizar();
+    ?.addEventListener("click", () => atualizarRelatorio());
 }
 
 function formatarTelefone(valor: string): string {
@@ -1191,9 +1208,14 @@ function iniciarExercicioOSFinalizadas() {
 }
 
 async function iniciar() {
-  montarCasca();
+  iniciarTabs();
+  iniciarFormCliente();
+  iniciarEquipamentos();
+  iniciarOS();
+  iniciarRelatorio();
+
   try {
-  await carregarDados();
+    await carregarDados();
   } catch (error) {
     const appElement = document.getElementById("app") as HTMLDivElement;
     const aviso = document.createElement("p");
@@ -1205,6 +1227,7 @@ async function iniciar() {
   renderEquipamentos();
   renderOS();
   renderRelatorio();
+  atualizarRelatorio();
   atualizarAbaAtiva();
   iniciarExercicioOSFinalizadas();
 }
