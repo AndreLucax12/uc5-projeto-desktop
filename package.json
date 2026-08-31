@@ -1,6 +1,6 @@
 {
   "name": "techos-assistencia-tecnica",
-  "version": "4.0.34",
+  "version": "4.0.35",
   "main": "dist-electron/main.js",
   "description": "Projeto de referência: exercícios IPC com Electron + Vite + TypeScript",
   "author": "Andréllv <andrelucaw8@gmail.com>",
