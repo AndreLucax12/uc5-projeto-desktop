@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, nativeImage } from "electron";
 import path from "path";
 import { pathToFileURL } from "url";
 import dns from "dns";
@@ -26,6 +26,9 @@ function createWindow() {
     center: true,
     title: "TechOS - Gerenciamento de Assistência Técnica",
     show: false, // Evita que a janela apareça antes de estar pronta
+    icon: nativeImage.createFromPath(
+      path.join(__dirname, "../build/icon.png"),
+    ),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
